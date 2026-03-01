@@ -1,0 +1,59 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px - 48px);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.back {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.back:hover {
+  color: var(--accent);
+}
+
+.songInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.artist {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.noLyrics {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dimmed);
+  font-size: 1.2rem;
+}
+
+.controls {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.status {
+  color: var(--text-secondary);
+  padding: 48px 0;
+  text-align: center;
+  font-size: 1.1rem;
+}

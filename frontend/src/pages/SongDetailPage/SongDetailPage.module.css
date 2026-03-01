@@ -1,0 +1,88 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.back {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.back:hover {
+  color: var(--accent);
+}
+
+.layout {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.coverWrap {
+  flex-shrink: 0;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.artist {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.meta dt {
+  color: var(--text-dimmed);
+  font-weight: 500;
+}
+
+.meta dd {
+  color: var(--text-primary);
+}
+
+.playBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 12px 40px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  width: fit-content;
+}
+
+.playBtn:hover {
+  background: var(--accent-secondary);
+  box-shadow: 0 0 20px var(--accent-glow);
+  text-decoration: none;
+}
+
+.status {
+  color: var(--text-secondary);
+  padding: 48px 0;
+  text-align: center;
+  font-size: 1.1rem;
+}

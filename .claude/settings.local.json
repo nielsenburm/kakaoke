@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npm create:*)",
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(node:*)",
+      "Bash(kill %1:*)",
+      "Bash(curl:*)",
+      "Bash(do grep:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

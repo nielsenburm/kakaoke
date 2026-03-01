@@ -1,0 +1,562 @@
+openapi: 3.1.0
+info:
+  title: KAKAoke API
+  description: |
+    Backend API for the KAKAoke karaoke web application.
+    Serves UltraStar song metadata, synchronized lyrics, and media assets
+    from a local song library.
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Songs
+    description: Browse, search, and retrieve song metadata
+  - name: Lyrics
+    description: Synchronized lyric timelines for playback
+  - name: Assets
+    description: Media files (audio, cover art, background images)
+  - name: Import
+    description: Import new songs into the library
+  - name: Filters
+    description: Available filter values for the song library
+
+paths:
+  /api/songs:
+    get:
+      operationId: getSongs
+      tags: [Songs]
+      summary: List songs in the library
+      description: |
+        Returns a paginated list of songs. Supports full-text search across
+        title and artist, filtering by genre, language, and year, and sorting.
+      parameters:
+        - name: search
+          in: query
+          description: |
+            Free-text search query. Matches against song title and artist name
+            (case-insensitive, partial match).
+          schema:
+            type: string
+          example: "Bohemian"
+        - name: genre
+          in: query
+          description: Filter by genre (case-insensitive exact match).
+          schema:
+            type: string
+          example: "Rock"
+        - name: edition
+          in: query
+          description: Filter by edition (case-insensitive exact match).
+          schema:
+            type: string
+          example: "Charts"
+        - name: language
+          in: query
+          description: Filter by language (case-insensitive exact match).
+          schema:
+            type: string
+          example: "English"
+        - name: year
+          in: query
+          description: Filter by release year.
+          schema:
+            type: integer
+          example: 1975
+        - name: sortBy
+          in: query
+          description: Field to sort results by.
+          schema:
+            type: string
+            enum: [title, artist, year]
+            default: title
+        - name: sortOrder
+          in: query
+          description: Sort direction.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          description: Zero-based page index.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Number of songs per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Paginated list of songs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SongPage"
+
+  /api/songs/{songId}:
+    get:
+      operationId: getSongById
+      tags: [Songs]
+      summary: Get a single song by ID
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "200":
+          description: Song metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/songs/{songId}/lyrics:
+    get:
+      operationId: getLyricTimeline
+      tags: [Lyrics]
+      summary: Get the synchronized lyric timeline for a song
+      description: |
+        Returns the full lyric timeline with millisecond-accurate timing
+        derived from the UltraStar note data. Each line contains tokens
+        (syllables) with start time, duration, pitch, and note type.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "200":
+          description: Lyric timeline with timed tokens grouped into lines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LyricTimeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/songs/{songId}/audio:
+    get:
+      operationId: getSongAudio
+      tags: [Assets]
+      summary: Stream the song's audio file
+      description: |
+        Returns the audio file for playback. Supports HTTP Range requests
+        for seeking. The `#AUDIO` header takes precedence over `#MP3` if
+        both are present in the UltraStar file.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+        - name: Range
+          in: header
+          description: Byte range for partial content requests (e.g. `bytes=0-1048575`).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full audio file.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial audio content (range request).
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                example: "bytes 0-1048575/5242880"
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: Requested range not satisfiable.
+
+  /api/songs/{songId}/cover:
+    get:
+      operationId: getSongCover
+      tags: [Assets]
+      summary: Get the song's cover image
+      description: |
+        Returns the cover artwork referenced by the `#COVER` header
+        in the UltraStar file.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "200":
+          description: Cover image file.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/songs/{songId}/background:
+    get:
+      operationId: getSongBackground
+      tags: [Assets]
+      summary: Get the song's background image
+      description: |
+        Returns the background image referenced by the `#BACKGROUND` header
+        in the UltraStar file.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "200":
+          description: Background image file.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/songs/import:
+    post:
+      operationId: importSong
+      tags: [Import]
+      summary: Import a song from a ZIP archive
+      description: |
+        Accepts a ZIP file containing an UltraStar `.txt` file and its
+        associated assets (audio, cover, background). The server extracts
+        the archive, parses the UltraStar file, and adds the song to the
+        library. The ZIP must contain exactly one `.txt` file at any level.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: ZIP archive containing the UltraStar song and assets.
+      responses:
+        "201":
+          description: Song successfully imported.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+        "400":
+          description: |
+            Invalid archive. Possible reasons: not a valid ZIP, no `.txt` file
+            found, multiple `.txt` files found, or UltraStar parse error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/filters/genres:
+    get:
+      operationId: getGenres
+      tags: [Filters]
+      summary: List all genres present in the library
+      description: |
+        Returns the distinct genre values across all songs, sorted
+        alphabetically. Useful for populating the genre filter dropdown.
+      responses:
+        "200":
+          description: List of genre strings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["Pop", "Rock", "R&B", "Electronic"]
+
+  /api/filters/editions:
+    get:
+      operationId: getEditions
+      tags: [Filters]
+      summary: List all editions present in the library
+      description: |
+        Returns the distinct edition values across all songs, sorted
+        alphabetically. Useful for populating the edition filter dropdown.
+      responses:
+        "200":
+          description: List of edition strings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["Charts", "Party", "SingStar"]
+
+  /api/filters/languages:
+    get:
+      operationId: getLanguages
+      tags: [Filters]
+      summary: List all languages present in the library
+      description: |
+        Returns the distinct language values across all songs, sorted
+        alphabetically. Useful for populating the language filter dropdown.
+      responses:
+        "200":
+          description: List of language strings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["English", "German", "Spanish", "Japanese"]
+
+components:
+  parameters:
+    songId:
+      name: songId
+      in: path
+      required: true
+      description: Unique identifier of the song.
+      schema:
+        type: string
+
+  responses:
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Song:
+      type: object
+      required: [id, title, artist, bpm, gap]
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the song.
+          example: "queen-bohemian-rhapsody"
+        title:
+          type: string
+          description: Song title (from `#TITLE` header).
+          example: "Bohemian Rhapsody"
+        artist:
+          type: string
+          description: Artist name (from `#ARTIST` header).
+          example: "Queen"
+        genre:
+          type: string
+          nullable: true
+          description: Genre (from `#GENRE` header), null if not specified.
+          example: "Rock"
+        year:
+          type: integer
+          nullable: true
+          description: Release year (from `#YEAR` header), null if not specified.
+          example: 1975
+        language:
+          type: string
+          nullable: true
+          description: Language (from `#LANGUAGE` header), null if not specified.
+          example: "English"
+        edition:
+          type: string
+          nullable: true
+          description: Edition tag (from `#EDITION` header), null if not specified.
+          example: "Charts"
+        creator:
+          type: string
+          nullable: true
+          description: Who created the UltraStar file (from `#CREATOR` header).
+        bpm:
+          type: number
+          format: double
+          description: |
+            Beats per minute as stored in the file (before the implicit 4x
+            multiplication). Used for beat-to-millisecond conversion.
+          example: 71.5
+        gap:
+          type: number
+          format: double
+          description: |
+            Offset in milliseconds from audio start to beat 0
+            (from `#GAP` header). Defaults to 0 if absent.
+          example: 5320.0
+        duet:
+          type: boolean
+          description: Whether this is a multi-voice (duet) song.
+          default: false
+        voiceNames:
+          type: array
+          nullable: true
+          description: |
+            Names of the voices for duet songs (from `#P1`–`#P9` headers).
+            Null for single-voice songs.
+          items:
+            type: string
+          example: ["Freddie", "Roger"]
+        previewStart:
+          type: number
+          format: double
+          nullable: true
+          description: |
+            Offset in seconds where the song preview should start
+            (from `#PREVIEWSTART` header).
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to retrieve the cover image, or null if no cover exists.
+          example: "/api/songs/queen-bohemian-rhapsody/cover"
+        backgroundUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to retrieve the background image, or null if none exists.
+          example: "/api/songs/queen-bohemian-rhapsody/background"
+        audioUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to stream the audio file, or null if no audio exists.
+          example: "/api/songs/queen-bohemian-rhapsody/audio"
+
+    SongPage:
+      type: object
+      required: [content, totalElements, totalPages, page, size]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Song"
+          description: Songs on the current page.
+        totalElements:
+          type: integer
+          description: Total number of songs matching the query.
+          example: 142
+        totalPages:
+          type: integer
+          description: Total number of pages.
+          example: 3
+        page:
+          type: integer
+          description: Current zero-based page index.
+          example: 0
+        size:
+          type: integer
+          description: Page size.
+          example: 50
+
+    LyricTimeline:
+      type: object
+      required: [songId, lines]
+      properties:
+        songId:
+          type: string
+          description: ID of the song this timeline belongs to.
+          example: "queen-bohemian-rhapsody"
+        lines:
+          type: array
+          description: Ordered list of lyric lines (phrases).
+          items:
+            $ref: "#/components/schemas/LyricLine"
+
+    LyricLine:
+      type: object
+      required: [tokens, startMs]
+      properties:
+        startMs:
+          type: number
+          format: double
+          description: Start time of this line in milliseconds from audio start.
+          example: 5320.0
+        tokens:
+          type: array
+          description: |
+            Ordered syllable tokens within this line. Concatenating all
+            token texts reproduces the full lyric text for the line.
+          items:
+            $ref: "#/components/schemas/LyricToken"
+
+    LyricToken:
+      type: object
+      required: [text, startMs, durationMs, pitch, noteType]
+      properties:
+        text:
+          type: string
+          description: |
+            Syllable text, including any leading/trailing spaces that separate
+            it from adjacent syllables.
+          example: "Is "
+        startMs:
+          type: number
+          format: double
+          description: Start time of this token in milliseconds from audio start.
+          example: 5320.0
+        durationMs:
+          type: number
+          format: double
+          description: Duration of this token in milliseconds.
+          example: 420.0
+        pitch:
+          type: integer
+          description: |
+            MIDI-relative pitch as half-steps from C4 (middle C).
+            Ignored for freestyle and rap notes.
+          example: 5
+        noteType:
+          $ref: "#/components/schemas/NoteType"
+
+    NoteType:
+      type: string
+      description: |
+        UltraStar note type indicating scoring behavior:
+        - `:` Normal note — standard pitch scoring
+        - `*` Golden note — awards bonus points
+        - `F` Freestyle — not scored
+        - `R` Rap — scored on timing only, pitch ignored
+        - `G` Golden rap — rap with bonus points
+      enum: [":", "*", "F", "R", "G"]
+
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: integer
+          description: HTTP status code.
+          example: 404
+        message:
+          type: string
+          description: Human-readable error description.
+          example: "Song not found"
+        detail:
+          type: string
+          nullable: true
+          description: Additional detail about the error, if available.

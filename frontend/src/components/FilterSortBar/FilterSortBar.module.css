@@ -1,0 +1,15 @@
+.bar {
+  display: flex;
+  gap: 8px;
+}
+
+.select {
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dimmed);
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+}

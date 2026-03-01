@@ -1,0 +1,39 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-primary);
+}
+
+.overlayFading {
+  animation: fadeOut 800ms ease-in-out forwards;
+}
+
+.logo {
+  position: fixed;
+  z-index: 10000;
+  /* Start large and centered */
+  width: 300px;
+  height: auto;
+  top: calc(50vh - 150px);
+  left: calc(50vw - 150px);
+  filter: drop-shadow(0 0 32px var(--accent-glow));
+}
+
+.logoShrinking {
+  animation: shrinkToNav 800ms ease-in-out forwards;
+}
+
+/* Target: nav logo position — 24px from left, vertically centered in 80px nav, 68px tall */
+@keyframes shrinkToNav {
+  to {
+    width: 68px;
+    top: 6px;
+    left: 24px;
+    filter: drop-shadow(0 0 0px transparent);
+  }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; }
+}
