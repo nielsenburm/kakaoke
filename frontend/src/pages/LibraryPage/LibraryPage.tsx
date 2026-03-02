@@ -12,6 +12,7 @@ const PAGE_SIZE = 24;
 const DEFAULT_FILTERS: FilterSortValues = {
   genre: '',
   language: '',
+  favorite: false,
   sortBy: 'title',
   sortOrder: 'asc',
 };
@@ -47,6 +48,7 @@ export function LibraryPage() {
     if (search.trim()) query.search = search.trim();
     if (filters.genre) query.genre = filters.genre;
     if (filters.language) query.language = filters.language;
+    if (filters.favorite) query.favorite = true;
 
     repo
       .getSongs(query)

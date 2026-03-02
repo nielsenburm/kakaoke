@@ -53,6 +53,36 @@
   text-decoration: none;
 }
 
+.userArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.username {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.logoutBtn {
+  background: none;
+  border: none;
+  color: var(--text-dimmed);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  transition: color var(--transition-fast);
+}
+
+.logoutBtn:hover {
+  color: var(--accent);
+}
+
 .content {
   flex: 1;
   padding: 24px;

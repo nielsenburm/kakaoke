@@ -132,6 +132,26 @@ export function SettingsPage() {
           <span className={styles.toggleSwitch} />
           <span className={styles.toggleLabel}>Show Background</span>
         </label>
+
+        <div className={styles.field}>
+          <div className={styles.fieldHeader}>
+            <span className={styles.label}>Lyrics Position</span>
+          </div>
+          <div className={styles.segmented}>
+            <button
+              className={`${styles.segmentedBtn} ${settings.lyricsPosition === 'center' ? styles.segmentedActive : ''}`}
+              onClick={() => updateSettings({ lyricsPosition: 'center' })}
+            >
+              Center
+            </button>
+            <button
+              className={`${styles.segmentedBtn} ${settings.lyricsPosition === 'bottom' ? styles.segmentedActive : ''}`}
+              onClick={() => updateSettings({ lyricsPosition: 'bottom' })}
+            >
+              Bottom
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ── Reset ── */}
@@ -144,7 +164,8 @@ export function SettingsPage() {
           settings.showPitchIndicator === SETTINGS_DEFAULTS.showPitchIndicator &&
           settings.autoPreview === SETTINGS_DEFAULTS.autoPreview &&
           settings.autoPlay === SETTINGS_DEFAULTS.autoPlay &&
-          settings.showBackground === SETTINGS_DEFAULTS.showBackground
+          settings.showBackground === SETTINGS_DEFAULTS.showBackground &&
+          settings.lyricsPosition === SETTINGS_DEFAULTS.lyricsPosition
         }
       >
         Reset to Defaults

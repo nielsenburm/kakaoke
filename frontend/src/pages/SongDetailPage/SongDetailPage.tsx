@@ -45,6 +45,7 @@ export function SongDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<EditForm | null>(null);
+  const [favorite, setFavorite] = useState(false);
 
   const fetchSong = useCallback(() => {
     if (!songId) return;
@@ -54,7 +55,7 @@ export function SongDetailPage() {
       .getSongById(songId)
       .then((s) => {
         if (!s) setError('Song not found');
-        else setSong(s);
+        else { setSong(s); setFavorite(s.favorite); }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -84,6 +85,8 @@ export function SongDetailPage() {
       setDeleting={setDeleting}
       confirmDelete={confirmDelete}
       setConfirmDelete={setConfirmDelete}
+      favorite={favorite}
+      setFavorite={setFavorite}
     />
   );
 }
@@ -103,6 +106,8 @@ interface SongDetailViewProps {
   setDeleting: (v: boolean) => void;
   confirmDelete: boolean;
   setConfirmDelete: (v: boolean) => void;
+  favorite: boolean;
+  setFavorite: (v: boolean) => void;
 }
 
 function SongDetailView({
@@ -110,6 +115,7 @@ function SongDetailView({
   editing, setEditing, form, setForm,
   saving, setSaving, deleting, setDeleting,
   confirmDelete, setConfirmDelete,
+  favorite, setFavorite,
 }: SongDetailViewProps) {
   const { songId } = useParams<{ songId: string }>();
   const repo = useSongRepository();
@@ -182,6 +188,16 @@ function SongDetailView({
       setError(e instanceof Error ? e.message : 'Delete failed');
       setDeleting(false);
       setConfirmDelete(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    const next = !favorite;
+    setFavorite(next);
+    try {
+      await repo.setFavorite(song.id, next);
+    } catch {
+      setFavorite(!next);
     }
   };
 
@@ -369,6 +385,9 @@ function SongDetailView({
               <div className={styles.actions}>
                 {song.status === 'ready' ? (
                   <Link to={`/play/${song.id}`} className={styles.playBtn}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
                     Play
                   </Link>
                 ) : (
@@ -376,36 +395,70 @@ function SongDetailView({
                     {song.status === 'processing' ? 'Processing...' : 'Unavailable'}
                   </span>
                 )}
-                <button className={styles.editBtn} onClick={startEditing}>
-                  Edit
-                </button>
-                {!confirmDelete ? (
+
+                <div className={styles.secondaryActions}>
                   <button
-                    className={styles.deleteBtn}
-                    onClick={() => setConfirmDelete(true)}
+                    className={`${styles.iconBtn} ${favorite ? styles.iconBtnFavoriteActive : ''}`}
+                    onClick={toggleFavorite}
+                    title={favorite ? 'Remove from favorites' : 'Add to favorites'}
                   >
-                    Delete
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill={favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
                   </button>
-                ) : (
-                  <div className={styles.confirmRow}>
-                    <span className={styles.confirmText}>Delete this song?</span>
-                    <button
-                      className={styles.confirmYes}
-                      onClick={handleDelete}
-                      disabled={deleting}
-                    >
-                      {deleting ? 'Deleting...' : 'Yes, delete'}
-                    </button>
-                    <button
-                      className={styles.confirmNo}
-                      onClick={() => setConfirmDelete(false)}
-                      disabled={deleting}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                  <button
+                    className={styles.iconBtn}
+                    onClick={startEditing}
+                    title="Edit song details"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                    onClick={() => setConfirmDelete(true)}
+                    title="Delete song"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
               </div>
+
+              {confirmDelete && (
+                <div className={styles.confirmOverlay}>
+                  <div className={styles.confirmCard}>
+                    <svg className={styles.confirmIcon} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <p className={styles.confirmText}>
+                      Remove <strong>{song.title}</strong> from your library?
+                    </p>
+                    <div className={styles.confirmButtons}>
+                      <button
+                        className={styles.confirmNo}
+                        onClick={() => setConfirmDelete(false)}
+                        disabled={deleting}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className={styles.confirmYes}
+                        onClick={handleDelete}
+                        disabled={deleting}
+                      >
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

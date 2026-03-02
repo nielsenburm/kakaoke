@@ -221,70 +221,99 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 20px;
-  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 .playBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 40px;
+  gap: 10px;
+  padding: 14px 44px;
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: var(--radius);
-  font-size: 1.1rem;
+  border-radius: 99px;
+  font-size: 1.05rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
-  width: fit-content;
+  letter-spacing: 0.02em;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.playBtn:hover {
+  background: var(--accent-secondary);
+  box-shadow: 0 0 24px var(--accent-glow);
+  transform: translateY(-1px);
+  text-decoration: none;
 }
 
 .playBtnDisabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 40px;
+  padding: 14px 44px;
   background: var(--bg-hover);
   color: var(--text-dimmed);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1.1rem;
+  border-radius: 99px;
+  font-size: 1.05rem;
   font-weight: 600;
   cursor: not-allowed;
-  width: fit-content;
 }
 
-.playBtn:hover {
-  background: var(--accent-secondary);
-  box-shadow: 0 0 20px var(--accent-glow);
-  text-decoration: none;
+.secondaryActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
 }
 
-.editBtn {
-  padding: 12px 24px;
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
   background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1rem;
+  color: var(--text-dimmed);
+  border: 1px solid transparent;
+  border-radius: 50%;
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
-.editBtn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+.iconBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border);
 }
+
+.iconBtnFavoriteActive {
+  color: #ef4444;
+}
+
+.iconBtnFavoriteActive:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.iconBtnDanger:hover {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.1);
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+/* Edit mode */
 
 .saveBtn {
   padding: 12px 32px;
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 99px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -306,7 +335,7 @@
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 99px;
   font-size: 1rem;
   cursor: pointer;
   transition: color var(--transition-fast), border-color var(--transition-fast);
@@ -322,43 +351,70 @@
   cursor: not-allowed;
 }
 
-.deleteBtn {
-  padding: 12px 24px;
+/* Delete confirmation overlay */
+
+.confirmOverlay {
+  margin-top: 4px;
+  padding: 16px 20px;
+  background: rgba(231, 76, 60, 0.06);
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  border-radius: var(--radius);
+}
+
+.confirmCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.confirmIcon {
+  flex-shrink: 0;
+  color: #e74c3c;
+}
+
+.confirmText {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.confirmText strong {
+  color: var(--text-primary);
+}
+
+.confirmButtons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.confirmNo {
+  padding: 8px 20px;
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1rem;
+  border-radius: 99px;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.deleteBtn:hover {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-
-.confirmRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.confirmText {
-  color: #e74c3c;
-  font-weight: 500;
-  font-size: 0.95rem;
+.confirmNo:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 
 .confirmYes {
-  padding: 8px 16px;
+  padding: 8px 20px;
   background: #e74c3c;
   color: #fff;
   border: none;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
+  border-radius: 99px;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--transition-fast);
 }
 
 .confirmYes:hover:not(:disabled) {
@@ -369,21 +425,6 @@
 .confirmNo:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.confirmNo {
-  padding: 8px 16px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.confirmNo:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
 }
 
 .status {

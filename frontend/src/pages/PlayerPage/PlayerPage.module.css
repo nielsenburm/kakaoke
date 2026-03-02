@@ -68,6 +68,40 @@
   pointer-events: none;
 }
 
+/* Lyrics wrappers */
+
+.lyricsFill {
+  flex: 1;
+  display: flex;
+  position: relative;
+  z-index: 2;
+}
+
+.lyricsBackdrop {
+  display: flex;
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  --lyrics-text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.9),
+    0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.lyricsBackdropCenter {
+  flex: 1;
+  display: flex;
+  position: relative;
+  z-index: 2;
+  --lyrics-text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.9),
+    0 0 12px rgba(0, 0, 0, 0.6);
+}
+
 .noLyrics {
   flex: 1;
   display: flex;

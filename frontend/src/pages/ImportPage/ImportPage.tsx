@@ -1,56 +1,110 @@
 import { useState, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSongRepository } from '../../context/SongRepositoryContext';
 import type { Song } from '../../model/Song';
 import styles from './ImportPage.module.css';
 
-interface ImportResult {
-  song: Song;
+interface ResultEntry {
+  song: Song | null;
+  error: string | null;
+  fileName: string;
+}
+
+const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
 export function ImportPage() {
   const repo = useSongRepository();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [errors, setErrors] = useState<ResultEntry[]>([]);
+  const [sizeErrors, setSizeErrors] = useState<string[]>([]);
 
-  const handleFile = useCallback(
-    async (file: File) => {
-      setError(null);
-      setResult(null);
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      const tooLarge = files.filter((f) => f.size > MAX_FILE_SIZE);
+      if (tooLarge.length > 0) {
+        setSizeErrors(
+          tooLarge.map((f) => `${f.name} (${formatSize(f.size)}) exceeds the 1 GB limit`),
+        );
+        return;
+      }
+      setSizeErrors([]);
+      setErrors([]);
       setImporting(true);
+      setProgress({ current: 0, total: files.length });
 
-      try {
-        const song = await repo.addSong(file);
-        setResult({ song });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to import song.');
-      } finally {
-        setImporting(false);
+      const successes: Song[] = [];
+      const failures: ResultEntry[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setProgress({ current: i + 1, total: files.length });
+
+        try {
+          const importResult = await repo.addSong(file);
+          for (const entry of importResult.results) {
+            if (entry.song) {
+              successes.push(entry.song);
+            } else if (entry.error) {
+              failures.push({ song: null, error: entry.error, fileName: file.name });
+            }
+          }
+        } catch (e) {
+          failures.push({
+            song: null,
+            error: e instanceof Error ? e.message : 'Failed to import',
+            fileName: file.name,
+          });
+        }
+      }
+
+      setImporting(false);
+
+      if (successes.length === 1 && failures.length === 0) {
+        navigate(`/song/${successes[0].id}`);
+      } else if (successes.length > 1 && failures.length === 0) {
+        navigate('/');
+      } else if (successes.length > 0 && failures.length > 0) {
+        // Some failed — stay on page to show errors, but still navigable
+        setErrors(failures);
+      } else {
+        // All failed
+        setErrors(failures);
       }
     },
-    [repo],
+    [repo, navigate],
   );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      const files = Array.from(e.dataTransfer.files).filter(
+        (f) => f.name.toLowerCase().endsWith('.zip'),
+      );
+      if (files.length > 0) handleFiles(files);
     },
-    [handleFile],
+    [handleFiles],
   );
 
   const onFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) handleFile(file);
+      const files = Array.from(e.target.files ?? []);
+      if (files.length > 0) handleFiles(files);
       e.target.value = '';
     },
-    [handleFile],
+    [handleFiles],
   );
 
   return (
@@ -58,11 +112,30 @@ export function ImportPage() {
       <Link to="/" className={styles.back}>
         &larr; Back to Library
       </Link>
-      <h1 className={styles.heading}>Import Song</h1>
+      <h1 className={styles.heading}>Import Songs</h1>
       <p className={styles.description}>
-        Upload a zip file containing an UltraStar song folder (.txt, .mp3, .jpg).
-        The song will be available in your library for this session.
+        Upload one or more zip files containing UltraStar song folders.
+        A single zip can contain multiple song folders.
       </p>
+
+      {sizeErrors.length > 0 && (
+        <div className={styles.sizeErrors}>
+          {sizeErrors.map((msg, i) => (
+            <div key={i} className={styles.error}>{msg}</div>
+          ))}
+        </div>
+      )}
+
+      {errors.length > 0 && (
+        <div className={styles.resultsList}>
+          {errors.map((r, i) => (
+            <div key={i} className={styles.error}>
+              {errors.length > 1 && <strong>{r.fileName}: </strong>}
+              {r.error}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div
         className={`${styles.dropZone} ${dragging ? styles.dropZoneActive : ''}`}
@@ -78,39 +151,24 @@ export function ImportPage() {
           ref={fileInputRef}
           type="file"
           accept=".zip"
+          multiple
           className={styles.hiddenInput}
           onChange={onFileChange}
         />
         {importing ? (
-          <span className={styles.dropText}>Importing...</span>
+          <span className={styles.dropText}>
+            Importing file {progress.current} of {progress.total}...
+          </span>
         ) : (
           <>
             <span className={styles.dropIcon}>&#128230;</span>
             <span className={styles.dropText}>
-              Drop a .zip file here or click to browse
+              Drop .zip files here or click to browse
             </span>
+            <span className={styles.dropHint}>Max file size: 1 GB</span>
           </>
         )}
       </div>
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      {result && (
-        <div className={styles.success}>
-          <p>
-            Imported <strong>{result.song.title}</strong> by{' '}
-            <strong>{result.song.artist}</strong>
-          </p>
-          <div className={styles.links}>
-            <Link to={`/song/${result.song.id}`} className={styles.link}>
-              View Song
-            </Link>
-            <Link to={`/play/${result.song.id}`} className={styles.link}>
-              Play Now
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

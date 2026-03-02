@@ -59,6 +59,15 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
   const mic = useMicrophone(settings.micSensitivity);
   const scoring = useScoring(timeline, player.currentTimeMs, mic.currentPitch, mic.isActive, settings.pitchTolerance);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoGapSec = song.videoGap ?? 0;
+
+  const showBg = settings.showBackground;
+  const bgVideoUrl = showBg ? song.videoUrl : null;
+  // Show image as fallback while video loads, or as primary background if no video
+  const bgImageUrl = showBg ? (song.backgroundUrl ?? song.coverUrl) : null;
+  const hasBg = !!(bgVideoUrl || bgImageUrl);
+
   // Set simulated duration from timeline if no audio
   useEffect(() => {
     if (timeline && !song.audioUrl) {
@@ -79,8 +88,7 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     return () => clearTimeout(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const getCurrentTimeMs = useCallback(() => player.currentTimeMs, [player.currentTimeMs]);
-  const sync = useLyricsSync(timeline, getCurrentTimeMs, player.isPlaying);
+  const sync = useLyricsSync(timeline, player.getCurrentTimeMs, player.isPlaying);
 
   const handleRestart = useCallback(() => {
     scoring.reset();
@@ -100,10 +108,15 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [mic]);
 
-  // Video sync
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const videoGapSec = song.videoGap ?? 0;
+  // Stop video on unmount to free decoder resources
+  useEffect(() => {
+    return () => {
+      videoRef.current?.pause();
+      if (videoRef.current) videoRef.current.src = '';
+    };
+  }, []);
 
+  // Video play/pause sync
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -115,20 +128,22 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [player.isPlaying]);
 
+  // Video drift correction — check periodically, not every frame
   useEffect(() => {
+    if (!player.isPlaying) return;
     const video = videoRef.current;
-    if (!video || !player.isPlaying) return;
+    if (!video) return;
 
-    const expectedTime = player.currentTimeMs / 1000 - videoGapSec;
-    if (expectedTime < 0) return;
-    if (Math.abs(video.currentTime - expectedTime) > 0.3) {
-      video.currentTime = expectedTime;
-    }
-  }, [player.currentTimeMs, player.isPlaying, videoGapSec]);
+    const id = setInterval(() => {
+      const expectedTime = player.getCurrentTimeMs() / 1000 - videoGapSec;
+      if (expectedTime < 0) return;
+      if (Math.abs(video.currentTime - expectedTime) > 0.5) {
+        video.currentTime = expectedTime;
+      }
+    }, 2000);
 
-  const showBg = settings.showBackground;
-  const bgVideoUrl = showBg ? song.videoUrl : null;
-  const bgImageUrl = showBg && !song.videoUrl ? (song.backgroundUrl ?? song.coverUrl) : null;
+    return () => clearInterval(id);
+  }, [player.isPlaying, player.getCurrentTimeMs, videoGapSec]);
 
   return (
     <div className={styles.page}>
@@ -151,6 +166,13 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
       {mic.error && <div className={styles.micError}>{mic.error}</div>}
 
       <div className={styles.stageArea}>
+        {bgImageUrl && (
+          <img
+            className={`${styles.bgMedia} ${!song.backgroundUrl ? styles.bgBlurred : ''}`}
+            src={bgImageUrl}
+            alt=""
+          />
+        )}
         {bgVideoUrl && (
           <video
             ref={videoRef}
@@ -158,14 +180,7 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
             src={bgVideoUrl}
             muted
             playsInline
-            preload="metadata"
-          />
-        )}
-        {bgImageUrl && (
-          <img
-            className={`${styles.bgMedia} ${!song.backgroundUrl ? styles.bgBlurred : ''}`}
-            src={bgImageUrl}
-            alt=""
+            preload="none"
           />
         )}
         {(bgVideoUrl || bgImageUrl) && <div className={styles.bgDim} />}
@@ -175,12 +190,18 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
         )}
 
         {timeline ? (
-          <LyricsRenderer
-            timeline={timeline}
-            sync={sync}
-            currentTimeMs={player.currentTimeMs}
-            tokenScores={mic.isActive ? scoring.currentLineTokenScores : null}
-          />
+          <div className={
+            hasBg
+              ? settings.lyricsPosition === 'bottom' ? styles.lyricsBackdrop : styles.lyricsBackdropCenter
+              : styles.lyricsFill
+          }>
+            <LyricsRenderer
+              timeline={timeline}
+              sync={sync}
+              currentTimeMs={player.currentTimeMs}
+              tokenScores={mic.isActive ? scoring.currentLineTokenScores : null}
+            />
+          </div>
         ) : (
           <div className={styles.noLyrics}>No lyrics available for this song.</div>
         )}
