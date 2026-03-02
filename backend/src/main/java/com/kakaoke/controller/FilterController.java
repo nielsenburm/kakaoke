@@ -1,5 +1,6 @@
 package com.kakaoke.controller;
 
+import com.kakaoke.security.AuthUtil;
 import com.kakaoke.service.SongService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,21 +20,21 @@ public class FilterController {
 
     @GetMapping("/genres")
     public List<String> getGenres() {
-        return songService.getGenres();
+        return songService.getGenres(AuthUtil.currentUserId());
     }
 
     @GetMapping("/editions")
     public List<String> getEditions() {
-        return songService.getEditions();
+        return songService.getEditions(AuthUtil.currentUserId());
     }
 
     @GetMapping("/languages")
     public List<String> getLanguages() {
-        return songService.getLanguages();
+        return songService.getLanguages(AuthUtil.currentUserId());
     }
 
     @GetMapping("/tags")
     public List<String> getTags() {
-        return songService.getTags();
+        return songService.getTags(AuthUtil.currentUserId());
     }
 }

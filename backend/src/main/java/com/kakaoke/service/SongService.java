@@ -3,11 +3,13 @@ package com.kakaoke.service;
 import com.kakaoke.dto.*;
 import com.kakaoke.entity.SongEntity;
 import com.kakaoke.entity.SongStatus;
+import com.kakaoke.entity.UserSongEntity;
 import com.kakaoke.exception.ImportException;
 import com.kakaoke.exception.SongNotFoundException;
 import com.kakaoke.parser.UltraStarParser;
 import com.kakaoke.parser.UltraStarParser.*;
 import com.kakaoke.repository.SongJpaRepository;
+import com.kakaoke.repository.UserSongJpaRepository;
 import com.kakaoke.storage.StorageProvider;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -16,9 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.text.Normalizer;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -30,14 +34,17 @@ public class SongService {
 
     private final StorageProvider storage;
     private final SongJpaRepository songRepo;
+    private final UserSongJpaRepository userSongRepo;
     private final ThumbnailService thumbnailService;
     private final S3UploadService s3UploadService;
     private final UltraStarParser parser = new UltraStarParser();
 
     public SongService(StorageProvider storage, SongJpaRepository songRepo,
+                       UserSongJpaRepository userSongRepo,
                        ThumbnailService thumbnailService, S3UploadService s3UploadService) {
         this.storage = storage;
         this.songRepo = songRepo;
+        this.userSongRepo = userSongRepo;
         this.thumbnailService = thumbnailService;
         this.s3UploadService = s3UploadService;
     }
@@ -55,15 +62,12 @@ public class SongService {
         for (SongEntity song : all) {
             boolean dirty = false;
 
-            // Stuck PROCESSING songs: server restarted during async upload
             if (song.getStatus() == SongStatus.PROCESSING) {
                 song.setStatus(SongStatus.BROKEN);
                 dirty = true;
-                log.warn("Song '{}' was still PROCESSING at startup — marked BROKEN",
-                        song.getId());
+                log.warn("Song '{}' was still PROCESSING at startup — marked BROKEN", song.getId());
             }
 
-            // The .txt file is essential — if missing, the song is broken
             boolean txtExists = fileExists(song.getStorageDir(), song.getTxtFileName());
             if (!txtExists) {
                 if (song.getStatus() != SongStatus.BROKEN) {
@@ -74,7 +78,6 @@ public class SongService {
                 }
                 brokenCount++;
             } else {
-                // .txt exists — song can recover from BROKEN
                 if (song.getStatus() == SongStatus.BROKEN) {
                     song.setStatus(SongStatus.READY);
                     dirty = true;
@@ -82,7 +85,6 @@ public class SongService {
                     log.info("Song '{}' recovered: .txt file found", song.getId());
                 }
 
-                // Check individual asset files — null out references to missing files
                 if (song.getAudioFileName() != null
                         && !fileExists(song.getStorageDir(), song.getAudioFileName())) {
                     log.warn("Song '{}': audio file missing ({}), clearing reference",
@@ -106,7 +108,6 @@ public class SongService {
                 }
             }
 
-            // Backfill content hash for existing songs
             if (song.getContentHash() == null && song.getStatus() == SongStatus.READY) {
                 try (InputStream is = storage.openFile(song.getStorageDir(), song.getTxtFileName())) {
                     song.setContentHash(sha256(is.readAllBytes()));
@@ -136,11 +137,20 @@ public class SongService {
 
     // --- Public API ---
 
-    public SongPageDto getSongs(String search, String genre, String edition,
-                                String language, Integer year,
+    public SongPageDto getSongs(Long userId, String search, String genre, String edition,
+                                String language, Integer year, Boolean favorite,
                                 String sortBy, String sortOrder,
                                 int page, int size) {
-        Stream<SongEntity> stream = songRepo.findAll().stream();
+        List<UserSongEntity> userSongs = userSongRepo.findByUserId(userId);
+        Map<String, UserSongEntity> userSongMap = userSongs.stream()
+                .collect(Collectors.toMap(UserSongEntity::getSongId, us -> us));
+
+        Stream<UserSongEntity> userSongStream = userSongs.stream();
+        if (Boolean.TRUE.equals(favorite)) {
+            userSongStream = userSongStream.filter(UserSongEntity::isFavorite);
+        }
+
+        Stream<SongEntity> stream = userSongStream.map(UserSongEntity::getSong);
 
         if (search != null && !search.isBlank()) {
             String q = search.toLowerCase(Locale.ROOT);
@@ -177,20 +187,22 @@ public class SongService {
         List<SongDto> content = filtered.stream()
                 .skip((long) page * size)
                 .limit(size)
-                .map(this::toSongDto)
+                .map(e -> toSongDto(e, userSongMap.get(e.getId())))
                 .toList();
 
         return new SongPageDto(content, totalElements, totalPages, page, size);
     }
 
-    public SongDto getSongById(String songId) {
+    public SongDto getSongById(Long userId, String songId) {
         SongEntity entity = songRepo.findById(songId)
                 .orElseThrow(() -> new SongNotFoundException(songId));
-        return toSongDto(entity);
+        UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, songId)
+                .orElse(null);
+        return toSongDto(entity, userSong);
     }
 
     @Transactional
-    public SongDto updateSong(String songId, SongUpdateDto update) {
+    public SongDto updateSong(Long userId, String songId, SongUpdateDto update) {
         SongEntity entity = songRepo.findById(songId)
                 .orElseThrow(() -> new SongNotFoundException(songId));
 
@@ -205,23 +217,30 @@ public class SongService {
 
         songRepo.save(entity);
         log.info("Updated song metadata: {} (id={})", entity.getTitle(), songId);
-        return toSongDto(entity);
+
+        UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, songId)
+                .orElse(null);
+        return toSongDto(entity, userSong);
     }
 
     @Transactional
-    public void deleteSong(String songId) {
+    public void removeFromLibrary(Long userId, String songId) {
+        userSongRepo.deleteByUserIdAndSongId(userId, songId);
+        log.info("Removed song '{}' from library of user {}", songId, userId);
+    }
+
+    @Transactional
+    public void deleteSongGlobally(String songId) {
         SongEntity entity = songRepo.findById(songId)
                 .orElseThrow(() -> new SongNotFoundException(songId));
-
         try {
             storage.deleteDirectory(entity.getStorageDir());
             log.info("Deleted storage for song '{}': {}", songId, entity.getStorageDir());
         } catch (Exception e) {
             log.warn("Failed to delete storage for song '{}': {}", songId, e.getMessage());
         }
-
         songRepo.delete(entity);
-        log.info("Deleted song from DB: {} - {} (id={})", entity.getArtist(), entity.getTitle(), songId);
+        log.info("Deleted song globally: {} - {} (id={})", entity.getArtist(), entity.getTitle(), songId);
     }
 
     public LyricTimelineDto getLyricTimeline(String songId) {
@@ -230,53 +249,97 @@ public class SongService {
         return buildTimelineFromStorage(entity);
     }
 
-    public List<String> getGenres() {
-        return songRepo.findDistinctGenres();
+    public List<String> getGenres(Long userId) {
+        return userSongRepo.findDistinctGenresByUserId(userId);
     }
 
-    public List<String> getEditions() {
-        return songRepo.findDistinctEditions();
+    public List<String> getEditions(Long userId) {
+        return userSongRepo.findDistinctEditionsByUserId(userId);
     }
 
-    public List<String> getLanguages() {
-        return songRepo.findDistinctLanguages();
+    public List<String> getLanguages(Long userId) {
+        return userSongRepo.findDistinctLanguagesByUserId(userId);
     }
 
-    public List<String> getTags() {
-        return songRepo.findDistinctTags();
+    public List<String> getTags(Long userId) {
+        return userSongRepo.findDistinctTagsByUserId(userId);
     }
 
     @Transactional
-    public SongDto importSong(InputStream zipStream) throws IOException {
-        // Extract ZIP into memory
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (ZipInputStream zis = new ZipInputStream(zipStream)) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                if (entry.isDirectory()) continue;
-                String name = entry.getName();
-                int lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
-                String fileName = lastSlash >= 0 ? name.substring(lastSlash + 1) : name;
-                if (fileName.isEmpty()) continue;
-                if (fileName.startsWith(".") || name.contains("__MACOSX")) continue;
-                entries.put(fileName, zis.readAllBytes());
+    public SongDto importSong(Long userId, InputStream zipStream) throws IOException {
+        Map<String, byte[]> entries = extractZipFlat(zipStream);
+        return importSongFromEntries(userId, entries);
+    }
+
+    @Transactional
+    public ImportResultDto importSongs(Long userId, InputStream zipStream) throws IOException {
+        // Extract keeping full paths so we can detect sub-folders
+        Map<String, byte[]> rawEntries = extractZipWithPaths(zipStream);
+
+        // Group files by top-level directory
+        Map<String, Map<String, byte[]>> groups = groupByFolder(rawEntries);
+
+        // If everything is in one group (single-folder zip or flat zip), import as single
+        if (groups.size() == 1) {
+            Map<String, byte[]> flat = groups.values().iterator().next();
+            try {
+                SongDto song = importSongFromEntries(userId, flat);
+                return new ImportResultDto(List.of(ImportResultDto.ImportEntry.success(song)));
+            } catch (Exception e) {
+                return new ImportResultDto(List.of(ImportResultDto.ImportEntry.failure(e.getMessage())));
             }
-        } catch (Exception e) {
-            throw new ImportException("Invalid ZIP archive: " + e.getMessage(), e);
         }
 
-        // Find the .txt file
+        // Multi-folder zip: import each group separately
+        List<ImportResultDto.ImportEntry> results = new ArrayList<>();
+        for (Map.Entry<String, Map<String, byte[]>> group : groups.entrySet()) {
+            Map<String, byte[]> files = group.getValue();
+            // Only attempt import if the group contains an UltraStar .txt file
+            boolean hasUltraStar = files.entrySet().stream()
+                    .anyMatch(e -> e.getKey().toLowerCase(Locale.ROOT).endsWith(".txt")
+                            && looksLikeUltraStar(e.getValue()));
+            if (!hasUltraStar) continue;
+
+            try {
+                SongDto song = importSongFromEntries(userId, files);
+                results.add(ImportResultDto.ImportEntry.success(song));
+            } catch (Exception e) {
+                results.add(ImportResultDto.ImportEntry.failure(
+                        group.getKey() + ": " + e.getMessage()));
+            }
+        }
+
+        if (results.isEmpty()) {
+            return new ImportResultDto(List.of(
+                    ImportResultDto.ImportEntry.failure("No UltraStar song folders found in the archive")));
+        }
+        return new ImportResultDto(results);
+    }
+
+    private SongDto importSongFromEntries(Long userId, Map<String, byte[]> entries) throws IOException {
+        // Find UltraStar .txt files (filter out non-UltraStar text files like license.txt, readme.txt)
         List<String> txtFiles = entries.keySet().stream()
                 .filter(f -> f.toLowerCase(Locale.ROOT).endsWith(".txt"))
+                .filter(f -> looksLikeUltraStar(entries.get(f)))
                 .toList();
         if (txtFiles.isEmpty()) {
-            throw new ImportException("No .txt UltraStar file found in the archive");
-        }
-        if (txtFiles.size() > 1) {
-            throw new ImportException("Multiple .txt files found in the archive — expected exactly one");
+            throw new ImportException("No UltraStar .txt file found in the archive");
         }
 
-        String txtFileName = txtFiles.getFirst();
+        // If multiple .txt files, prefer the primary (non-duet) one.
+        // Duet variants typically have [DUET] or [DUETT] in the filename.
+        String txtFileName;
+        if (txtFiles.size() == 1) {
+            txtFileName = txtFiles.getFirst();
+        } else {
+            txtFileName = txtFiles.stream()
+                    .filter(f -> {
+                        String upper = f.toUpperCase(Locale.ROOT);
+                        return !upper.contains("[DUET]") && !upper.contains("[DUETT]");
+                    })
+                    .findFirst()
+                    .orElse(txtFiles.getFirst());
+        }
         byte[] txtData = entries.get(txtFileName);
 
         // Parse the UltraStar file
@@ -300,10 +363,19 @@ public class SongService {
         boolean reImport = entity != null;
 
         if (reImport) {
-            // Already known and healthy — nothing to do
+            // Already known and healthy — just add to user's library
             if (entity.getStatus() == SongStatus.READY) {
-                log.info("Song '{}' already exists and is READY — skipping re-import", entity.getId());
-                return toSongDto(entity);
+                if (!userSongRepo.existsByUserIdAndSongId(userId, entity.getId())) {
+                    UserSongEntity userSong = new UserSongEntity();
+                    userSong.setUserId(userId);
+                    userSong.setSongId(entity.getId());
+                    userSongRepo.save(userSong);
+                }
+                UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, entity.getId())
+                        .orElse(null);
+                log.info("Song '{}' already exists and is READY — added to user {}'s library",
+                        entity.getId(), userId);
+                return toSongDto(entity, userSong);
             }
 
             // Delete old storage (best-effort — may already be gone)
@@ -359,7 +431,7 @@ public class SongService {
             duet = parsed.events().stream().anyMatch(e -> e instanceof Event.VoiceChange);
         }
 
-        // Upload .txt file synchronously (small, needed for lyrics immediately)
+        // Upload .txt file synchronously
         storage.storeFile(dirName, txtFileName, new ByteArrayInputStream(txtData));
 
         // Update entity fields
@@ -397,16 +469,120 @@ public class SongService {
         }
 
         songRepo.save(entity);
-        log.info("{} song: {} - {} (id={}, status={}, hash={})",
-                reImport ? "Re-imported" : "Imported",
-                h.artist(), h.title(), entity.getId(), entity.getStatus(), contentHash.substring(0, 12));
 
-        // Fire async upload for remaining files (audio, cover, background, etc.)
+        // Link song to user's library
+        if (!userSongRepo.existsByUserIdAndSongId(userId, entity.getId())) {
+            UserSongEntity userSong = new UserSongEntity();
+            userSong.setUserId(userId);
+            userSong.setSongId(entity.getId());
+            userSongRepo.save(userSong);
+        }
+
+        log.info("{} song: {} - {} (id={}, status={}, hash={}, user={})",
+                reImport ? "Re-imported" : "Imported",
+                h.artist(), h.title(), entity.getId(), entity.getStatus(),
+                contentHash.substring(0, 12), userId);
+
+        // Fire async upload for remaining files
         if (!asyncFiles.isEmpty()) {
             s3UploadService.uploadFilesAsync(entity.getId(), dirName, asyncFiles);
         }
 
-        return toSongDto(entity);
+        UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, entity.getId())
+                .orElse(null);
+        return toSongDto(entity, userSong);
+    }
+
+    // --- ZIP extraction helpers ---
+
+    /** Extract zip stripping directory paths (flat map of filename → data). */
+    private Map<String, byte[]> extractZipFlat(InputStream zipStream) throws IOException {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (ZipInputStream zis = new ZipInputStream(zipStream)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                int lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+                String fileName = lastSlash >= 0 ? name.substring(lastSlash + 1) : name;
+                if (fileName.isEmpty()) continue;
+                if (fileName.startsWith(".") || name.contains("__MACOSX")) continue;
+                entries.put(fileName, zis.readAllBytes());
+            }
+        } catch (IOException e) {
+            throw new ImportException("Invalid ZIP archive: " + e.getMessage(), e);
+        }
+        return entries;
+    }
+
+    /** Extract zip keeping full relative paths. */
+    private Map<String, byte[]> extractZipWithPaths(InputStream zipStream) throws IOException {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (ZipInputStream zis = new ZipInputStream(zipStream)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                String name = entry.getName().replace('\\', '/');
+                String fileName = name.contains("/") ? name.substring(name.lastIndexOf('/') + 1) : name;
+                if (fileName.isEmpty() || fileName.startsWith(".") || name.contains("__MACOSX")) continue;
+                entries.put(name, zis.readAllBytes());
+            }
+        } catch (IOException e) {
+            throw new ImportException("Invalid ZIP archive: " + e.getMessage(), e);
+        }
+        return entries;
+    }
+
+    /**
+     * Group zip entries by their top-level directory.
+     * Files in the root go into a "" group.
+     * E.g. "Artist - Song/file.txt" → group "Artist - Song", key "file.txt"
+     */
+    private Map<String, Map<String, byte[]>> groupByFolder(Map<String, byte[]> entries) {
+        Map<String, Map<String, byte[]>> groups = new LinkedHashMap<>();
+        for (Map.Entry<String, byte[]> e : entries.entrySet()) {
+            String path = e.getKey();
+            int slash = path.indexOf('/');
+            String folder;
+            String fileName;
+            if (slash >= 0) {
+                folder = path.substring(0, slash);
+                // Use only the final filename (strip nested subdirs)
+                int lastSlash = path.lastIndexOf('/');
+                fileName = path.substring(lastSlash + 1);
+            } else {
+                folder = "";
+                fileName = path;
+            }
+            if (fileName.isEmpty()) continue;
+            groups.computeIfAbsent(folder, k -> new LinkedHashMap<>()).put(fileName, e.getValue());
+        }
+        return groups;
+    }
+
+    // --- Favorites ---
+
+    @Transactional
+    public void setFavorite(Long userId, String songId, boolean favorite) {
+        UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, songId)
+                .orElseThrow(() -> new SongNotFoundException(songId));
+        userSong.setFavorite(favorite);
+        userSongRepo.save(userSong);
+    }
+
+    // --- Played ---
+
+    @Transactional
+    public void markPlayed(Long userId, String songId) {
+        if (!songRepo.existsById(songId)) {
+            throw new SongNotFoundException(songId);
+        }
+        UserSongEntity userSong = userSongRepo.findByUserIdAndSongId(userId, songId)
+                .orElseThrow(() -> new SongNotFoundException(songId));
+        if (!userSong.isPlayed()) {
+            userSong.setPlayed(true);
+            userSongRepo.save(userSong);
+        }
     }
 
     // --- Asset resolution ---
@@ -436,7 +612,6 @@ public class SongService {
             return new AssetInfo(entity.getStorageDir(), entity.getThumbnailFileName());
         }
 
-        // Lazy backfill: generate thumbnail for existing songs with cover in storage
         if (entity.getCoverFileName() != null && entity.getStatus() == SongStatus.READY) {
             try {
                 byte[] coverBytes = storage.openFile(
@@ -473,10 +648,6 @@ public class SongService {
         return new AssetInfo(entity.getStorageDir(), entity.getVideoFileName());
     }
 
-    /**
-     * Called when an asset file is not found in storage. Checks whether the
-     * essential .txt file still exists — if not, marks the song as BROKEN.
-     */
     @Transactional
     public void onAssetMissing(String songId) {
         songRepo.findById(songId).ifPresent(entity -> {
@@ -490,28 +661,21 @@ public class SongService {
         });
     }
 
-    @Transactional
-    public void markPlayed(String songId) {
-        SongEntity entity = songRepo.findById(songId)
-                .orElseThrow(() -> new SongNotFoundException(songId));
-        if (!entity.isPlayed()) {
-            entity.setPlayed(true);
-            songRepo.save(entity);
-        }
-    }
-
     public StorageProvider getStorage() {
         return storage;
     }
 
     // --- Private helpers ---
 
-    private SongDto toSongDto(SongEntity e) {
+    private SongDto toSongDto(SongEntity e, UserSongEntity userSong) {
         SongStatus status = e.getStatus();
         boolean ready = status == SongStatus.READY;
 
         String thumbnailUrl = e.getThumbnailFileName() != null
                 ? "/api/songs/" + e.getId() + "/thumbnail" : null;
+
+        boolean played = userSong != null && userSong.isPlayed();
+        boolean favorite = userSong != null && userSong.isFavorite();
 
         return new SongDto(
                 e.getId(),
@@ -535,7 +699,8 @@ public class SongService {
                 e.getVideoGap(),
                 e.getTags(),
                 status.name().toLowerCase(Locale.ROOT),
-                e.isPlayed()
+                played,
+                favorite
         );
     }
 
@@ -614,6 +779,17 @@ public class SongService {
         } catch (Exception e) {
             throw new RuntimeException("SHA-256 not available", e);
         }
+    }
+
+    /**
+     * Quick check whether raw .txt file bytes look like an UltraStar file
+     * (starts with header lines beginning with '#', contains #TITLE or #ARTIST).
+     */
+    private static boolean looksLikeUltraStar(byte[] data) {
+        String start = new String(data, 0, Math.min(data.length, 2048), StandardCharsets.UTF_8);
+        // Must have at least one '#' header line with a required UltraStar header
+        String upper = start.toUpperCase(Locale.ROOT);
+        return upper.contains("#TITLE:") || upper.contains("#ARTIST:");
     }
 
     static String generateId(String artist, String title) {

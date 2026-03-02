@@ -1,7 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface AudioPlayerState {
+  /** Throttled time for React UI (~15 fps). Use getCurrentTimeMs() for real-time access. */
   currentTimeMs: number;
+  /** Stable getter for real-time position (reads from ref, no re-render). */
+  getCurrentTimeMs: () => number;
   durationMs: number;
   isPlaying: boolean;
   setAudioElement: (el: HTMLAudioElement | null) => void;
@@ -13,14 +16,19 @@ export interface AudioPlayerState {
 
 export function useAudioPlayer(audioUrl: string | null): AudioPlayerState {
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const currentTimeMsRef = useRef(0);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const rafRef = useRef<number>(0);
+  const lastStateUpdateRef = useRef(0);
   const simulatedRef = useRef({ playing: false, startWall: 0, startTime: 0 });
   const listenersRef = useRef<{ onMeta: () => void; onEnded: () => void } | null>(null);
 
   const hasAudio = audioUrl !== null;
+  const mountedRef = useRef(true);
+
+  const getCurrentTimeMs = useCallback(() => currentTimeMsRef.current, []);
 
   // Callback ref for the <audio> element — attaches event listeners immediately
   const setAudioElement = useCallback(
@@ -51,25 +59,37 @@ export function useAudioPlayer(audioUrl: string | null): AudioPlayerState {
     [],
   );
 
-  // rAF loop
+  // rAF loop — update ref every frame, throttle React state to ~15 fps
   useEffect(() => {
+    mountedRef.current = true;
     function tick() {
+      if (!mountedRef.current) return;
+      let ms = currentTimeMsRef.current;
       if (hasAudio) {
         const el = audioElRef.current;
-        if (el) {
-          setCurrentTimeMs(el.currentTime * 1000);
-        }
+        if (el) ms = el.currentTime * 1000;
       } else {
         const sim = simulatedRef.current;
         if (sim.playing) {
-          const elapsed = performance.now() - sim.startWall;
-          setCurrentTimeMs(sim.startTime + elapsed);
+          ms = sim.startTime + (performance.now() - sim.startWall);
         }
+      }
+      currentTimeMsRef.current = ms;
+
+      const now = performance.now();
+      if (now - lastStateUpdateRef.current >= 66) {
+        lastStateUpdateRef.current = now;
+        setCurrentTimeMs(ms);
       }
       rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      mountedRef.current = false;
+      cancelAnimationFrame(rafRef.current);
+      // Pause audio element on unmount so it doesn't keep playing
+      audioElRef.current?.pause();
+    };
   }, [hasAudio]);
 
   const play = useCallback(() => {
@@ -97,6 +117,7 @@ export function useAudioPlayer(audioUrl: string | null): AudioPlayerState {
       if (hasAudio && audioElRef.current) {
         audioElRef.current.currentTime = ms / 1000;
       }
+      currentTimeMsRef.current = ms;
       setCurrentTimeMs(ms);
       simulatedRef.current.startTime = ms;
       simulatedRef.current.startWall = performance.now();
@@ -110,6 +131,7 @@ export function useAudioPlayer(audioUrl: string | null): AudioPlayerState {
 
   return {
     currentTimeMs,
+    getCurrentTimeMs,
     durationMs,
     isPlaying,
     setAudioElement,

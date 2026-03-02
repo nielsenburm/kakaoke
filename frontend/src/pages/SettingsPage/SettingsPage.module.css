@@ -171,6 +171,43 @@
   font-size: 0.95rem;
 }
 
+/* ── Segmented control ── */
+
+.segmented {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmentedBtn {
+  flex: 1;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.segmentedBtn:last-child {
+  border-right: none;
+}
+
+.segmentedBtn:hover:not(.segmentedActive) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.segmentedActive {
+  background: rgba(224, 64, 251, 0.15);
+  color: var(--accent);
+}
+
 /* ── Reset button ── */
 
 .resetButton {

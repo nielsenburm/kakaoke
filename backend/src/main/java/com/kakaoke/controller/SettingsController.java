@@ -1,6 +1,7 @@
 package com.kakaoke.controller;
 
 import com.kakaoke.dto.SettingsDto;
+import com.kakaoke.security.AuthUtil;
 import com.kakaoke.service.SettingsService;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,11 +17,11 @@ public class SettingsController {
 
     @GetMapping
     public SettingsDto getSettings() {
-        return settingsService.get();
+        return settingsService.get(AuthUtil.currentUserId());
     }
 
     @PutMapping
     public SettingsDto updateSettings(@RequestBody SettingsDto update) {
-        return settingsService.update(update);
+        return settingsService.update(AuthUtil.currentUserId(), update);
     }
 }

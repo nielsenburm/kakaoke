@@ -14,6 +14,8 @@ servers:
     description: Local development server
 
 tags:
+  - name: Auth
+    description: User registration, login, and session management
   - name: Songs
     description: Browse, search, and retrieve song metadata
   - name: Lyrics
@@ -27,15 +29,88 @@ tags:
   - name: Settings
     description: User-configurable application settings
 
+security:
+  - bearerAuth: []
+
 paths:
+  /api/auth/register:
+    post:
+      operationId: register
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: Registration successful. Returns JWT token and user info.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: |
+            Invalid registration. Username must be 3-50 characters,
+            password must be 6+ characters, or username already taken.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/login:
+    post:
+      operationId: login
+      tags: [Auth]
+      summary: Log in with username and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful. Returns JWT token and user info.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Auth]
+      summary: Get the currently authenticated user
+      responses:
+        "200":
+          description: Current user info.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated or token expired.
+
   /api/songs:
     get:
       operationId: getSongs
       tags: [Songs]
-      summary: List songs in the library
+      summary: List songs in the user's library
       description: |
-        Returns a paginated list of songs. Supports full-text search across
-        title and artist, filtering by genre, language, and year, and sorting.
+        Returns a paginated list of songs from the current user's library.
+        Supports full-text search across title and artist, filtering by genre,
+        language, and year, and sorting.
       parameters:
         - name: search
           in: query
@@ -69,6 +144,11 @@ paths:
           schema:
             type: integer
           example: 1975
+        - name: favorite
+          in: query
+          description: When true, only return songs the user has marked as favourite.
+          schema:
+            type: boolean
         - name: sortBy
           in: query
           description: Field to sort results by.
@@ -149,18 +229,18 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
-      operationId: deleteSong
+      operationId: removeSongFromLibrary
       tags: [Songs]
-      summary: Delete a song from the library
+      summary: Remove a song from the user's library
       description: |
-        Removes the song from the database and deletes all associated files
-        from storage (audio, cover, background, UltraStar .txt). This action
-        is irreversible.
+        Removes the song from the current user's library. The song remains in
+        the global pool and is still available to other users who have it. This
+        does not delete the actual song files.
       parameters:
         - $ref: "#/components/parameters/songId"
       responses:
         "204":
-          description: Song successfully deleted.
+          description: Song removed from library.
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -375,14 +455,44 @@ paths:
       tags: [Songs]
       summary: Mark a song as played
       description: |
-        Sets the `played` flag to `true` for the given song. This removes the
-        "New" badge from the library grid. Idempotent — calling multiple times
-        has no additional effect.
+        Sets the `played` flag to `true` for the current user's association
+        with this song. This removes the "New" badge from the library grid.
+        Per-user — other users' played status is unaffected. Idempotent.
       parameters:
         - $ref: "#/components/parameters/songId"
       responses:
         "204":
           description: Song marked as played.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/songs/{songId}/favorite:
+    post:
+      operationId: favoriteSong
+      tags: [Songs]
+      summary: Add a song to favorites
+      description: |
+        Marks the song as a favorite for the current user. Per-user — does not
+        affect other users. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "204":
+          description: Song added to favorites.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: unfavoriteSong
+      tags: [Songs]
+      summary: Remove a song from favorites
+      description: |
+        Removes the song from the current user's favorites. Per-user — does not
+        affect other users. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "204":
+          description: Song removed from favorites.
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -405,9 +515,9 @@ paths:
         status becomes `broken`.
 
         **Deduplication:** The server computes a SHA-256 hash of the `.txt`
-        file content. If an existing song has the same hash, the import
-        replaces that song (same ID is kept, old files are cleaned up).
-        This allows re-uploading a song to fix a broken entry.
+        file content. If an existing song has the same hash and is ready,
+        it is simply added to the current user's library (no re-upload).
+        If re-importing a broken entry, the song is re-uploaded and repaired.
 
         The ZIP must contain exactly one `.txt` file at any level.
       requestBody:
@@ -442,10 +552,10 @@ paths:
     get:
       operationId: getGenres
       tags: [Filters]
-      summary: List all genres present in the library
+      summary: List all genres present in the user's library
       description: |
-        Returns the distinct genre values across all songs, sorted
-        alphabetically. Useful for populating the genre filter dropdown.
+        Returns the distinct genre values across the current user's songs,
+        sorted alphabetically. Useful for populating the genre filter dropdown.
       responses:
         "200":
           description: List of genre strings.
@@ -461,10 +571,10 @@ paths:
     get:
       operationId: getEditions
       tags: [Filters]
-      summary: List all editions present in the library
+      summary: List all editions present in the user's library
       description: |
-        Returns the distinct edition values across all songs, sorted
-        alphabetically. Useful for populating the edition filter dropdown.
+        Returns the distinct edition values across the current user's songs,
+        sorted alphabetically. Useful for populating the edition filter dropdown.
       responses:
         "200":
           description: List of edition strings.
@@ -480,10 +590,10 @@ paths:
     get:
       operationId: getTags
       tags: [Filters]
-      summary: List all tags used in the library
+      summary: List all tags used in the user's library
       description: |
-        Returns the distinct tag values across all songs, sorted
-        alphabetically. Useful for populating tag suggestions.
+        Returns the distinct tag values across the current user's songs,
+        sorted alphabetically. Useful for populating tag suggestions.
       responses:
         "200":
           description: List of tag strings.
@@ -499,10 +609,10 @@ paths:
     get:
       operationId: getLanguages
       tags: [Filters]
-      summary: List all languages present in the library
+      summary: List all languages present in the user's library
       description: |
-        Returns the distinct language values across all songs, sorted
-        alphabetically. Useful for populating the language filter dropdown.
+        Returns the distinct language values across the current user's songs,
+        sorted alphabetically. Useful for populating the language filter dropdown.
       responses:
         "200":
           description: List of language strings.
@@ -518,10 +628,10 @@ paths:
     get:
       operationId: getSettings
       tags: [Settings]
-      summary: Get current application settings
+      summary: Get current user's settings
       description: |
-        Returns the current application settings. If no settings have been
-        saved yet, returns the default values.
+        Returns the current user's application settings. Per-user — each user
+        has their own settings stored in the database.
       responses:
         "200":
           description: Current settings.
@@ -532,11 +642,11 @@ paths:
     put:
       operationId: updateSettings
       tags: [Settings]
-      summary: Update application settings
+      summary: Update the current user's settings
       description: |
         Accepts a partial or full settings object. Provided fields are merged
-        with existing settings; omitted fields retain their current values.
-        Returns the complete merged settings.
+        with the current user's settings; omitted fields retain their current
+        values. Returns the complete merged settings.
       requestBody:
         required: true
         content:
@@ -575,7 +685,73 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
 
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from `/api/auth/login` or `/api/auth/register`.
+        Include in the `Authorization` header as `Bearer <token>`.
+
   schemas:
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Unique username for the new account.
+          example: "singer42"
+        password:
+          type: string
+          minLength: 6
+          description: Password (minimum 6 characters).
+          example: "mypassword"
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Username.
+          example: "singer42"
+        password:
+          type: string
+          description: Password.
+          example: "mypassword"
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: JWT authentication token.
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, username, admin]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique user ID.
+          example: 1
+        username:
+          type: string
+          description: Username.
+          example: "singer42"
+        admin:
+          type: boolean
+          description: Whether the user has admin privileges.
+          default: false
+
     Song:
       type: object
       required: [id, title, artist, bpm, gap]
@@ -718,8 +894,15 @@ components:
         played:
           type: boolean
           description: |
-            Whether this song has been played at least once. Songs that have
+            Whether this song has been played at least once by the current user.
+            Per-user — each user has their own played status. Songs that have
             never been played show a "New" badge in the library grid.
+          default: false
+        favorite:
+          type: boolean
+          description: |
+            Whether the current user has favorited this song. Per-user — each
+            user has their own favorites.
           default: false
 
     SongUpdate:
@@ -911,6 +1094,15 @@ components:
             video (synced with audio), or falls back to the background image,
             or a blurred cover. A dim overlay ensures lyric readability.
           default: true
+        lyricsPosition:
+          type: string
+          enum: [center, bottom]
+          description: |
+            Where to position the lyrics during singing. "center" places
+            them vertically centered in the stage area. "bottom" anchors
+            them at the bottom in a frosted-glass backdrop panel.
+          default: bottom
+          example: bottom
 
     Error:
       type: object

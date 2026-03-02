@@ -77,8 +77,6 @@ public class SongEntity {
     @Column(length = 64)
     private String contentHash;
 
-    private boolean played;
-
     public SongEntity() {}
 
     // Getters and setters
@@ -155,6 +153,4 @@ public class SongEntity {
     public String getContentHash() { return contentHash; }
     public void setContentHash(String contentHash) { this.contentHash = contentHash; }
 
-    public boolean isPlayed() { return played; }
-    public void setPlayed(boolean played) { this.played = played; }
 }

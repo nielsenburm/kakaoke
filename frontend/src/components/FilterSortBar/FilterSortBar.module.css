@@ -3,6 +3,28 @@
   gap: 8px;
 }
 
+.favoriteToggle {
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+  line-height: 1;
+}
+
+.favoriteToggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.favoriteActive {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .select {
   padding: 10px 12px;
   background: var(--bg-card);

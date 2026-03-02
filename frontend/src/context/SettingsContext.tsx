@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { apiFetch } from '../data/apiClient';
 
 export interface AppSettings {
   /** Semitones of leeway for pitch matching (0.5–4). Lower = harder. */
@@ -13,6 +14,8 @@ export interface AppSettings {
   autoPlay: boolean;
   /** Show video/background behind lyrics during singing. */
   showBackground: boolean;
+  /** Lyrics position: 'center' or 'bottom'. */
+  lyricsPosition: 'center' | 'bottom';
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -22,24 +25,8 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   autoPreview: true,
   autoPlay: true,
   showBackground: true,
+  lyricsPosition: 'bottom',
 };
-
-const STORAGE_KEY = 'kakaoke-settings';
-
-function loadSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...SETTINGS_DEFAULTS, ...parsed };
-    }
-  } catch { /* ignore corrupt data */ }
-  return { ...SETTINGS_DEFAULTS };
-}
-
-function saveSettings(settings: AppSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-}
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -50,20 +37,40 @@ interface SettingsContextValue {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [settings, setSettings] = useState<AppSettings>({ ...SETTINGS_DEFAULTS });
+
+  useEffect(() => {
+    apiFetch('/api/settings')
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (data) setSettings({ ...SETTINGS_DEFAULTS, ...data });
+      })
+      .catch(() => { /* use defaults on error */ });
+  }, []);
 
   const updateSettings = useCallback((partial: Partial<AppSettings>) => {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
-      saveSettings(next);
+      apiFetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      }).catch(() => { /* silent */ });
       return next;
     });
   }, []);
 
   const resetSettings = useCallback(() => {
     const defaults = { ...SETTINGS_DEFAULTS };
-    saveSettings(defaults);
     setSettings(defaults);
+    apiFetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(defaults),
+    }).catch(() => { /* silent */ });
   }, []);
 
   return (

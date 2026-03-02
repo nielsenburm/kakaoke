@@ -8,6 +8,8 @@ export interface MicrophoneState {
   currentPitch: number | null;
   requestMic: () => Promise<void>;
   stopMic: () => void;
+  /** Fully release mic resources (call on unmount) */
+  releaseMic: () => void;
 }
 
 /**
@@ -140,42 +142,87 @@ export function useMicrophone(sensitivity = 0.01): MicrophoneState {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bufferRef = useRef<Float32Array | null>(null);
   const filterRef = useRef(new PitchMedianFilter(5, 3));
+  const lastPitchRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
   // Store sensitivity in a ref so the interval tick always reads the latest value
   const sensitivityRef = useRef(sensitivity);
   sensitivityRef.current = sensitivity;
 
-  const stopMic = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
+  const startDetection = useCallback(() => {
+    if (intervalRef.current) return;
+    const filter = filterRef.current;
+    filter.reset();
+    lastPitchRef.current = null;
+    intervalRef.current = setInterval(() => {
+      if (!mountedRef.current) return;
+      if (analyserRef.current && audioCtxRef.current && bufferRef.current) {
+        const rawPitch = detectPitch(analyserRef.current, audioCtxRef.current.sampleRate, bufferRef.current, sensitivityRef.current);
+        const filtered = filter.push(rawPitch);
+        // Only trigger React re-render when the pitch value actually changed
+        if (filtered !== lastPitchRef.current) {
+          lastPitchRef.current = filtered;
+          setCurrentPitch(filtered);
+        }
+      }
+    }, 66);
+  }, []);
+
+  const stopDetection = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    filterRef.current.reset();
+    setCurrentPitch(null);
+  }, []);
+
+  const releaseMic = useCallback(() => {
+    stopDetection();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     audioCtxRef.current?.close();
     audioCtxRef.current = null;
     analyserRef.current = null;
     streamRef.current = null;
     bufferRef.current = null;
-    filterRef.current.reset();
     setIsActive(false);
-    setCurrentPitch(null);
-  }, []);
+  }, [stopDetection]);
+
+  const stopMic = useCallback(() => {
+    // Just stop detection — keep AudioContext and stream alive for fast re-enable
+    stopDetection();
+    setIsActive(false);
+  }, [stopDetection]);
 
   const requestMic = useCallback(async () => {
     if (isActive) return;
-    setIsRequesting(true);
     setError(null);
+
+    // If we already have a live stream, just restart detection
+    if (audioCtxRef.current && streamRef.current && streamRef.current.active) {
+      // Resume AudioContext if it was suspended
+      if (audioCtxRef.current.state === 'suspended') {
+        await audioCtxRef.current.resume();
+      }
+      startDetection();
+      setIsActive(true);
+      return;
+    }
+
+    // Otherwise acquire mic from scratch
+    setIsRequesting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
+          echoCancellation: false,
+          noiseSuppression: false,
           autoGainControl: true,
         },
       });
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 4096; // larger buffer → better low-freq resolution
+      analyser.fftSize = 4096;
       source.connect(analyser);
-      // Do NOT connect to destination — avoids feedback
 
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
@@ -183,18 +230,7 @@ export function useMicrophone(sensitivity = 0.01): MicrophoneState {
       bufferRef.current = new Float32Array(analyser.fftSize);
       setIsActive(true);
 
-      // Run pitch detection at ~15 Hz — gives the buffer time to fill with
-      // fresh samples between reads, producing much more stable results
-      // than the previous requestAnimationFrame (~60 Hz) approach.
-      const filter = filterRef.current;
-      filter.reset();
-
-      intervalRef.current = setInterval(() => {
-        if (analyserRef.current && audioCtxRef.current && bufferRef.current) {
-          const rawPitch = detectPitch(analyserRef.current, audioCtxRef.current.sampleRate, bufferRef.current, sensitivityRef.current);
-          setCurrentPitch(filter.push(rawPitch));
-        }
-      }, 66);
+      startDetection();
     } catch (e) {
       const msg =
         e instanceof DOMException && e.name === 'NotAllowedError'
@@ -204,10 +240,16 @@ export function useMicrophone(sensitivity = 0.01): MicrophoneState {
     } finally {
       setIsRequesting(false);
     }
-  }, [isActive]);
+  }, [isActive, startDetection]);
 
   // Cleanup on unmount
-  useEffect(() => () => stopMic(), [stopMic]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      releaseMic();
+    };
+  }, [releaseMic]);
 
-  return { isActive, isRequesting, error, currentPitch, requestMic, stopMic };
+  return { isActive, isRequesting, error, currentPitch, requestMic, stopMic, releaseMic };
 }

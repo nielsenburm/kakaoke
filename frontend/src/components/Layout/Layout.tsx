@@ -1,8 +1,10 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import styles from './Layout.module.css';
 
 export function Layout() {
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
   const isLibrary = pathname === '/';
 
   return (
@@ -16,6 +18,12 @@ export function Layout() {
           <Link to="/settings" className={styles.navLink} title="Settings">
             <GearIcon />
           </Link>
+          {user && (
+            <div className={styles.userArea}>
+              <span className={styles.username}>{user.username}</span>
+              <button className={styles.logoutBtn} onClick={logout}>Logout</button>
+            </div>
+          )}
         </div>
       </nav>
       <main className={styles.content}>

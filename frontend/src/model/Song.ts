@@ -21,4 +21,5 @@ export interface Song {
   tags: string[] | null;
   status: 'ready' | 'processing' | 'broken';
   played: boolean;
+  favorite: boolean;
 }

@@ -3,6 +3,7 @@ import styles from './FilterSortBar.module.css';
 export interface FilterSortValues {
   genre: string;
   language: string;
+  favorite: boolean;
   sortBy: 'title' | 'artist' | 'year';
   sortOrder: 'asc' | 'desc';
 }
@@ -17,6 +18,13 @@ interface FilterSortBarProps {
 export function FilterSortBar({ genres, languages, values, onChange }: FilterSortBarProps) {
   return (
     <div className={styles.bar}>
+      <button
+        className={`${styles.favoriteToggle} ${values.favorite ? styles.favoriteActive : ''}`}
+        onClick={() => onChange({ ...values, favorite: !values.favorite })}
+        title={values.favorite ? 'Show all songs' : 'Show favourites only'}
+      >
+        {values.favorite ? '\u2665' : '\u2661'}
+      </button>
       <select
         className={styles.select}
         value={values.genre}

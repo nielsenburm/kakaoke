@@ -98,3 +98,35 @@
   line-height: 1.4;
   pointer-events: none;
 }
+
+.heartBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.card:hover .heartBtn {
+  opacity: 1;
+}
+
+.heartBtn.heartActive {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.heartBtn:hover {
+  color: #ef4444;
+  transform: scale(1.15);
+}

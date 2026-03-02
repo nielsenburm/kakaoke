@@ -1,70 +1,62 @@
 package com.kakaoke.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kakaoke.dto.SettingsDto;
-import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import com.kakaoke.entity.UserSettingsEntity;
+import com.kakaoke.repository.UserSettingsJpaRepository;
 import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SettingsService {
 
-    private static final Logger log = LoggerFactory.getLogger(SettingsService.class);
+    private final UserSettingsJpaRepository settingsRepo;
 
-    private final Path settingsFile;
-    private final ObjectMapper mapper = new ObjectMapper();
-    private SettingsDto current = SettingsDto.DEFAULTS;
-
-    public SettingsService(@Value("${kakaoke.settings.file:./settings.json}") String path) {
-        this.settingsFile = Path.of(path);
+    public SettingsService(UserSettingsJpaRepository settingsRepo) {
+        this.settingsRepo = settingsRepo;
     }
 
-    @PostConstruct
-    public void load() {
-        if (Files.isRegularFile(settingsFile)) {
-            try {
-                current = mapper.readValue(settingsFile.toFile(), SettingsDto.class);
-                log.info("Loaded settings from {}", settingsFile);
-            } catch (IOException e) {
-                log.warn("Failed to load settings, using defaults: {}", e.getMessage());
-                current = SettingsDto.DEFAULTS;
-            }
-        }
+    public SettingsDto get(Long userId) {
+        UserSettingsEntity entity = settingsRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Settings not found"));
+        return toDto(entity);
     }
 
-    public SettingsDto get() {
-        return current;
-    }
+    @Transactional
+    public SettingsDto update(Long userId, SettingsDto update) {
+        UserSettingsEntity entity = settingsRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Settings not found"));
 
-    public SettingsDto update(SettingsDto update) {
-        // Validate ranges
         if (update.pitchTolerance() != null) {
             if (update.pitchTolerance() < 0.5 || update.pitchTolerance() > 4.0) {
                 throw new IllegalArgumentException("pitchTolerance must be between 0.5 and 4.0");
             }
+            entity.setPitchTolerance(update.pitchTolerance());
         }
         if (update.micSensitivity() != null) {
             if (update.micSensitivity() < 0.005 || update.micSensitivity() > 0.05) {
                 throw new IllegalArgumentException("micSensitivity must be between 0.005 and 0.05");
             }
+            entity.setMicSensitivity(update.micSensitivity());
+        }
+        if (update.showPitchIndicator() != null) entity.setShowPitchIndicator(update.showPitchIndicator());
+        if (update.autoPreview() != null) entity.setAutoPreview(update.autoPreview());
+        if (update.autoPlay() != null) entity.setAutoPlay(update.autoPlay());
+        if (update.showBackground() != null) entity.setShowBackground(update.showBackground());
+        if (update.lyricsPosition() != null) {
+            if (!"center".equals(update.lyricsPosition()) && !"bottom".equals(update.lyricsPosition())) {
+                throw new IllegalArgumentException("lyricsPosition must be 'center' or 'bottom'");
+            }
+            entity.setLyricsPosition(update.lyricsPosition());
         }
 
-        current = current.mergeWith(update);
-        persist();
-        return current;
+        settingsRepo.save(entity);
+        return toDto(entity);
     }
 
-    private void persist() {
-        try {
-            mapper.writerWithDefaultPrettyPrinter().writeValue(settingsFile.toFile(), current);
-        } catch (IOException e) {
-            log.error("Failed to persist settings to {}: {}", settingsFile, e.getMessage());
-        }
+    private SettingsDto toDto(UserSettingsEntity e) {
+        return new SettingsDto(
+                e.getPitchTolerance(), e.getMicSensitivity(), e.isShowPitchIndicator(),
+                e.isAutoPreview(), e.isAutoPlay(), e.isShowBackground(), e.getLyricsPosition()
+        );
     }
 }

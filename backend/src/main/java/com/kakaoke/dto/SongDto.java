@@ -26,5 +26,6 @@ public record SongDto(
         Double videoGap,
         List<String> tags,
         String status,
-        boolean played
+        boolean played,
+        boolean favorite
 ) {}

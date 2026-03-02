@@ -6,7 +6,7 @@
   align-items: center;
   gap: 24px;
   overflow: hidden;
-  padding: 32px 16px;
+  padding: 32px 24px;
 }
 
 .currentLine {
@@ -14,10 +14,11 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 800;
   text-align: center;
   line-height: 1.6;
+  letter-spacing: 0.01em;
   opacity: 1;
   transform: translateY(0);
   animation: slideIn 0.4s ease-out;
@@ -25,8 +26,8 @@
 }
 
 .nextLine {
-  font-size: 1.3rem;
-  font-weight: 600;
+  font-size: 1.35rem;
+  font-weight: 700;
   text-align: center;
   line-height: 1.6;
   opacity: 0.4;
@@ -66,11 +67,12 @@
 .token {
   color: var(--token-upcoming);
   transition: color var(--transition-fast), text-shadow var(--transition-fast);
+  text-shadow: var(--lyrics-text-shadow, none);
 }
 
 .activeToken {
   color: var(--token-active);
-  text-shadow: 0 0 16px var(--accent-glow);
+  text-shadow: 0 0 16px var(--accent-glow), var(--lyrics-text-shadow, 0 0 0 transparent);
 }
 
 .pastToken {
@@ -80,15 +82,15 @@
 /* Score-based past token colors (when mic active) */
 .tokenGood {
   color: #4ade80;
-  text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.4), var(--lyrics-text-shadow, 0 0 0 transparent);
 }
 
 .tokenClose {
   color: #fb923c;
-  text-shadow: 0 0 10px rgba(251, 146, 60, 0.3);
+  text-shadow: 0 0 10px rgba(251, 146, 60, 0.3), var(--lyrics-text-shadow, 0 0 0 transparent);
 }
 
 .tokenMiss {
   color: #f87171;
-  text-shadow: 0 0 10px rgba(248, 113, 113, 0.3);
+  text-shadow: 0 0 10px rgba(248, 113, 113, 0.3), var(--lyrics-text-shadow, 0 0 0 transparent);
 }
