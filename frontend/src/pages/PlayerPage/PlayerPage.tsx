@@ -64,8 +64,7 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
 
   const showBg = settings.showBackground;
   const bgVideoUrl = showBg ? song.videoUrl : null;
-  // Use thumbnail for cover fallback — full covers can be multi-MB and freeze the browser during decode
-  const bgImageSrc = showBg ? (song.backgroundUrl ?? song.thumbnailUrl ?? song.coverUrl) : null;
+  const bgImageSrc = showBg ? (song.backgroundUrl ?? song.coverUrl) : null;
 
   // ── Media readiness gates ──
 
@@ -266,8 +265,9 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
         )}
       </div>
 
-      {/* Controls — always mounted so audio can buffer; hidden during loading */}
-      <div className={styles.controls} style={allReady ? undefined : { display: 'none' }}>
+      {/* Controls — always mounted so audio can buffer.
+          Use visibility:hidden (not display:none) so the browser still loads the <audio> element. */}
+      <div className={styles.controls} style={allReady ? undefined : { visibility: 'hidden', position: 'absolute' }}>
         <AudioPlayer audioUrl={song.audioUrl} player={player} />
       </div>
     </div>
