@@ -312,6 +312,63 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/songs/{songId}/video:
+    get:
+      operationId: getSongVideo
+      tags: [Assets]
+      summary: Stream the song's video file
+      description: |
+        Returns the video file referenced by the `#VIDEO` header in the
+        UltraStar file. Supports HTTP Range requests for streaming playback
+        without downloading the entire file. Use the `videoGap` field from the
+        Song object to offset the video relative to the audio timeline.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+        - name: Range
+          in: header
+          description: Byte range for partial content requests (e.g. `bytes=0-1048575`).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full video file.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            video/*:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial video content (range request).
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                example: "bytes 0-1048575/52428800"
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            video/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: Requested range not satisfiable.
+
   /api/songs/{songId}/played:
     post:
       operationId: markSongPlayed
@@ -622,6 +679,23 @@ components:
           nullable: true
           description: URL to stream the audio file, or null if no audio exists.
           example: "/api/songs/queen-bohemian-rhapsody/audio"
+        videoUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            URL to stream the video file (from `#VIDEO` header), or null if
+            no video exists. Supports HTTP Range requests for streaming.
+          example: "/api/songs/queen-bohemian-rhapsody/video"
+        videoGap:
+          type: number
+          format: double
+          nullable: true
+          description: |
+            Offset in seconds between the start of the video and the start of
+            the audio (from `#VIDEOGAP` header). Positive values mean the video
+            starts later than the audio. Null if not specified.
+          example: 0.0
         tags:
           type: array
           nullable: true
@@ -828,6 +902,14 @@ components:
           description: |
             Whether to automatically start playback and enable the
             microphone when entering the karaoke player.
+          default: true
+        showBackground:
+          type: boolean
+          description: |
+            Whether to display the song's video or background image behind
+            the lyrics during singing. When enabled, the player shows the
+            video (synced with audio), or falls back to the background image,
+            or a blurred cover. A dim overlay ensures lyric readability.
           default: true
 
     Error:

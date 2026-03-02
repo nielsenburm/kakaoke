@@ -121,6 +121,17 @@ export function SettingsPage() {
           <span className={styles.toggleSwitch} />
           <span className={styles.toggleLabel}>Show Pitch Indicator</span>
         </label>
+
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={settings.showBackground}
+            onChange={(e) => updateSettings({ showBackground: e.target.checked })}
+          />
+          <span className={styles.toggleSwitch} />
+          <span className={styles.toggleLabel}>Show Background</span>
+        </label>
       </section>
 
       {/* ── Reset ── */}
@@ -132,7 +143,8 @@ export function SettingsPage() {
           settings.micSensitivity === SETTINGS_DEFAULTS.micSensitivity &&
           settings.showPitchIndicator === SETTINGS_DEFAULTS.showPitchIndicator &&
           settings.autoPreview === SETTINGS_DEFAULTS.autoPreview &&
-          settings.autoPlay === SETTINGS_DEFAULTS.autoPlay
+          settings.autoPlay === SETTINGS_DEFAULTS.autoPlay &&
+          settings.showBackground === SETTINGS_DEFAULTS.showBackground
         }
       >
         Reset to Defaults

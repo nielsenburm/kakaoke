@@ -323,12 +323,16 @@ public class SongService {
         String audioFile = h.resolvedAudioFile();
         String coverFile = h.cover();
         String bgFile = h.background();
+        String videoFile = h.video();
 
         if (coverFile == null) {
             coverFile = findCoverInFiles(entries.keySet());
         }
         if (bgFile != null && bgFile.contains("..")) {
             bgFile = null;
+        }
+        if (videoFile != null && videoFile.contains("..")) {
+            videoFile = null;
         }
 
         // Generate thumbnail from cover image
@@ -376,6 +380,8 @@ public class SongService {
         entity.setAudioFileName(audioFile);
         entity.setCoverFileName(coverFile);
         entity.setBackgroundFileName(bgFile);
+        entity.setVideoFileName(videoFile);
+        entity.setVideoGap(h.videoGap());
         entity.setThumbnailFileName(thumbnailFileName);
         entity.setContentHash(contentHash);
 
@@ -460,6 +466,13 @@ public class SongService {
         return new AssetInfo(entity.getStorageDir(), entity.getBackgroundFileName());
     }
 
+    public AssetInfo resolveVideo(String songId) {
+        SongEntity entity = songRepo.findById(songId)
+                .orElseThrow(() -> new SongNotFoundException(songId));
+        if (entity.getVideoFileName() == null) return null;
+        return new AssetInfo(entity.getStorageDir(), entity.getVideoFileName());
+    }
+
     /**
      * Called when an asset file is not found in storage. Checks whether the
      * essential .txt file still exists — if not, marks the song as BROKEN.
@@ -518,6 +531,8 @@ public class SongService {
                 thumbnailUrl,
                 ready && e.getBackgroundFileName() != null ? "/api/songs/" + e.getId() + "/background" : null,
                 ready && e.getAudioFileName() != null ? "/api/songs/" + e.getId() + "/audio" : null,
+                ready && e.getVideoFileName() != null ? "/api/songs/" + e.getId() + "/video" : null,
+                e.getVideoGap(),
                 e.getTags(),
                 status.name().toLowerCase(Locale.ROOT),
                 e.isPlayed()

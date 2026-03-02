@@ -11,6 +11,8 @@ export interface AppSettings {
   autoPreview: boolean;
   /** Auto-play and auto-enable mic when entering the player. */
   autoPlay: boolean;
+  /** Show video/background behind lyrics during singing. */
+  showBackground: boolean;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -19,6 +21,7 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   showPitchIndicator: true,
   autoPreview: true,
   autoPlay: true,
+  showBackground: true,
 };
 
 const STORAGE_KEY = 'kakaoke-settings';

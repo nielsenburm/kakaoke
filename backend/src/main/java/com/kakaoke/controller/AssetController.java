@@ -76,6 +76,38 @@ public class AssetController {
         return serveFile(songId, info, "image/jpeg");
     }
 
+    @GetMapping("/{songId}/video")
+    public ResponseEntity<?> getVideo(
+            @PathVariable String songId,
+            @RequestHeader(value = "Range", required = false) String rangeHeader) throws IOException {
+
+        AssetInfo info = songService.resolveVideo(songId);
+        if (info == null) {
+            return ResponseEntity.status(404)
+                    .body(new ErrorDto(404, "Video not found for song: " + songId));
+        }
+
+        StorageProvider storage = songService.getStorage();
+        if (!storage.fileExists(info.dirName(), info.fileName())) {
+            songService.onAssetMissing(songId);
+            return ResponseEntity.status(404)
+                    .body(new ErrorDto(404, "Video file missing for song: " + songId));
+        }
+        long fileSize = storage.fileSize(info.dirName(), info.fileName());
+        String contentType = guessMediaType(info.fileName(), "video/mp4");
+
+        if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
+            return handleRangeRequest(storage, info, fileSize, rangeHeader, contentType);
+        }
+
+        InputStream is = storage.openFile(info.dirName(), info.fileName());
+        return ResponseEntity.ok()
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Length", String.valueOf(fileSize))
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(new InputStreamResource(is));
+    }
+
     @GetMapping("/{songId}/background")
     public ResponseEntity<?> getBackground(@PathVariable String songId) throws IOException {
         AssetInfo info = songService.resolveBackground(songId);
@@ -170,6 +202,10 @@ public class AssetController {
         if (lower.endsWith(".png")) return "image/png";
         if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
         if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".mp4")) return "video/mp4";
+        if (lower.endsWith(".webm")) return "video/webm";
+        if (lower.endsWith(".mkv")) return "video/x-matroska";
+        if (lower.endsWith(".avi")) return "video/x-msvideo";
         return defaultType;
     }
 

@@ -55,6 +55,12 @@ public class SongEntity {
     /** Background filename — null if no background */
     private String backgroundFileName;
 
+    /** Video filename — null if no video */
+    private String videoFileName;
+
+    /** Video gap in seconds (delay relative to audio start) */
+    private Double videoGap;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "song_tags", joinColumns = @JoinColumn(name = "song_id"))
     @Column(name = "tag")
@@ -130,6 +136,12 @@ public class SongEntity {
 
     public String getBackgroundFileName() { return backgroundFileName; }
     public void setBackgroundFileName(String backgroundFileName) { this.backgroundFileName = backgroundFileName; }
+
+    public String getVideoFileName() { return videoFileName; }
+    public void setVideoFileName(String videoFileName) { this.videoFileName = videoFileName; }
+
+    public Double getVideoGap() { return videoGap; }
+    public void setVideoGap(Double videoGap) { this.videoGap = videoGap; }
 
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags; }

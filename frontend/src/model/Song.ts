@@ -16,6 +16,8 @@ export interface Song {
   thumbnailUrl: string | null;
   backgroundUrl: string | null;
   audioUrl: string | null;
+  videoUrl: string | null;
+  videoGap: number | null;
   tags: string[] | null;
   status: 'ready' | 'processing' | 'broken';
   played: boolean;
