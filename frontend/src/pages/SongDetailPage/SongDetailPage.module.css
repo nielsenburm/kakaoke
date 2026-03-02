@@ -111,6 +111,11 @@
   flex-shrink: 0;
 }
 
+.previewPlayer {
+  margin-top: 12px;
+  width: 280px;
+}
+
 .info {
   display: flex;
   flex-direction: column;

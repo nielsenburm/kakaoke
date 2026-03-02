@@ -816,6 +816,19 @@ components:
             expected note in real time.
           default: true
           example: true
+        autoPreview:
+          type: boolean
+          description: |
+            Whether to automatically play an audio preview when viewing
+            a song's detail page. The preview starts from the song's
+            `previewStart` position if available, otherwise from the beginning.
+          default: true
+        autoPlay:
+          type: boolean
+          description: |
+            Whether to automatically start playback and enable the
+            microphone when entering the karaoke player.
+          default: true
 
     Error:
       type: object

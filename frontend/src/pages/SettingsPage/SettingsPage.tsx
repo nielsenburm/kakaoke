@@ -80,6 +80,33 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Playback ── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Playback</h2>
+
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={settings.autoPreview}
+            onChange={(e) => updateSettings({ autoPreview: e.target.checked })}
+          />
+          <span className={styles.toggleSwitch} />
+          <span className={styles.toggleLabel}>Auto-play Preview</span>
+        </label>
+
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={settings.autoPlay}
+            onChange={(e) => updateSettings({ autoPlay: e.target.checked })}
+          />
+          <span className={styles.toggleSwitch} />
+          <span className={styles.toggleLabel}>Auto-play on Start</span>
+        </label>
+      </section>
+
       {/* ── Display ── */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Display</h2>
@@ -103,7 +130,9 @@ export function SettingsPage() {
         disabled={
           settings.pitchTolerance === SETTINGS_DEFAULTS.pitchTolerance &&
           settings.micSensitivity === SETTINGS_DEFAULTS.micSensitivity &&
-          settings.showPitchIndicator === SETTINGS_DEFAULTS.showPitchIndicator
+          settings.showPitchIndicator === SETTINGS_DEFAULTS.showPitchIndicator &&
+          settings.autoPreview === SETTINGS_DEFAULTS.autoPreview &&
+          settings.autoPlay === SETTINGS_DEFAULTS.autoPlay
         }
       >
         Reset to Defaults
