@@ -7,12 +7,18 @@ export interface AppSettings {
   micSensitivity: number;
   /** Whether the vertical pitch gauge shows during singing. */
   showPitchIndicator: boolean;
+  /** Auto-play audio preview on the song detail page. */
+  autoPreview: boolean;
+  /** Auto-play and auto-enable mic when entering the player. */
+  autoPlay: boolean;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
   pitchTolerance: 2,
   micSensitivity: 0.01,
   showPitchIndicator: true,
+  autoPreview: true,
+  autoPlay: true,
 };
 
 const STORAGE_KEY = 'kakaoke-settings';

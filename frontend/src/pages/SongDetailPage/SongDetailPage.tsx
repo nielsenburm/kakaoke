@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSongRepository } from '../../context/SongRepositoryContext';
+import { useSettings } from '../../context/SettingsContext';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { AudioPlayer } from '../../components/AudioPlayer/AudioPlayer';
 import type { Song } from '../../model/Song';
 import type { SongUpdate } from '../../data/SongRepository';
 import { CoverImage } from '../../components/CoverImage/CoverImage';
@@ -34,7 +37,6 @@ function songToForm(song: Song): EditForm {
 export function SongDetailPage() {
   const { songId } = useParams<{ songId: string }>();
   const repo = useSongRepository();
-  const navigate = useNavigate();
   const [song, setSong] = useState<Song | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,8 +64,75 @@ export function SongDetailPage() {
     fetchSong();
   }, [fetchSong]);
 
+  if (loading) return <div className={styles.status}>Loading...</div>;
+  if (!song && !error) return <div className={styles.status}>Song not found</div>;
+  if (!song) return <ConnectionError message={error!} onRetry={fetchSong} />;
+
+  return (
+    <SongDetailView
+      song={song}
+      setSong={setSong}
+      error={error}
+      setError={setError}
+      editing={editing}
+      setEditing={setEditing}
+      form={form}
+      setForm={setForm}
+      saving={saving}
+      setSaving={setSaving}
+      deleting={deleting}
+      setDeleting={setDeleting}
+      confirmDelete={confirmDelete}
+      setConfirmDelete={setConfirmDelete}
+    />
+  );
+}
+
+interface SongDetailViewProps {
+  song: Song;
+  setSong: (s: Song) => void;
+  error: string | null;
+  setError: (e: string | null) => void;
+  editing: boolean;
+  setEditing: (v: boolean) => void;
+  form: EditForm | null;
+  setForm: (f: EditForm | null) => void;
+  saving: boolean;
+  setSaving: (v: boolean) => void;
+  deleting: boolean;
+  setDeleting: (v: boolean) => void;
+  confirmDelete: boolean;
+  setConfirmDelete: (v: boolean) => void;
+}
+
+function SongDetailView({
+  song, setSong, error, setError,
+  editing, setEditing, form, setForm,
+  saving, setSaving, deleting, setDeleting,
+  confirmDelete, setConfirmDelete,
+}: SongDetailViewProps) {
+  const { songId } = useParams<{ songId: string }>();
+  const repo = useSongRepository();
+  const navigate = useNavigate();
+  const { settings } = useSettings();
+
+  const audioUrl = song.status === 'ready' ? song.audioUrl : null;
+  const player = useAudioPlayer(audioUrl);
+  const previewStarted = useRef(false);
+
+  // Auto-play preview from previewStart
+  useEffect(() => {
+    if (previewStarted.current) return;
+    if (!settings.autoPreview || !audioUrl) return;
+    if (player.durationMs <= 0) return;
+    previewStarted.current = true;
+    if (song.previewStart != null && song.previewStart > 0) {
+      player.seek(song.previewStart * 1000);
+    }
+    player.play();
+  }, [settings.autoPreview, audioUrl, player.durationMs, song.previewStart, player]);
+
   const startEditing = () => {
-    if (!song) return;
     setForm(songToForm(song));
     setEditing(true);
     setError(null);
@@ -92,7 +161,7 @@ export function SongDetailPage() {
           ? form.tags.split(',').map((t) => t.trim()).filter(Boolean)
           : [],
       };
-      const updated = await repo.updateSong(songId, update);
+      const updated = await repo.updateSong(songId!, update);
       setSong(updated);
       setEditing(false);
       setForm(null);
@@ -117,12 +186,8 @@ export function SongDetailPage() {
   };
 
   const updateField = (field: keyof EditForm, value: string) => {
-    setForm((prev) => prev ? { ...prev, [field]: value } : prev);
+    setForm(form ? { ...form, [field]: value } : form);
   };
-
-  if (loading) return <div className={styles.status}>Loading...</div>;
-  if (!song && !error) return <div className={styles.status}>Song not found</div>;
-  if (!song) return <ConnectionError message={error!} onRetry={fetchSong} />;
 
   return (
     <div className={styles.page}>
@@ -152,6 +217,11 @@ export function SongDetailPage() {
       <div className={styles.layout}>
         <div className={styles.coverWrap}>
           <CoverImage url={song.coverUrl} alt={song.title} size={280} />
+          {audioUrl && (
+            <div className={styles.previewPlayer}>
+              <AudioPlayer audioUrl={audioUrl} player={player} />
+            </div>
+          )}
         </div>
 
         <div className={styles.info}>

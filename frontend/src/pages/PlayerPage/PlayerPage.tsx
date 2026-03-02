@@ -69,8 +69,9 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [timeline, song.audioUrl, player.setSimulatedDuration]);
 
-  // Auto-play and auto-enable mic when mounted
+  // Auto-play and auto-enable mic when mounted (if enabled in settings)
   useEffect(() => {
+    if (!settings.autoPlay) return;
     const id = setTimeout(() => {
       player.play();
       mic.requestMic();
