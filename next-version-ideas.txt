@@ -1,2 +1,5 @@
-- Other karaoke software formats
+- Video streaming
 - Preview function at song menu screen
+- Sessions - start a session, play songs one by another. Statistics across different plays, a playlist (curated my the host if activated) and a wishlist people can open add wishes or next songs (if playlist is disabled) to
+- scan QR code to join session with another device as client (multiple people can scan it with their smartphone and sing there)
+- Other karaoke software formats
