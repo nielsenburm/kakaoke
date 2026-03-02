@@ -50,7 +50,6 @@ export function useAudioPlayer(audioUrl: string | null): AudioPlayerState {
         el.addEventListener('loadedmetadata', onMeta);
         el.addEventListener('ended', onEnded);
         listenersRef.current = { onMeta, onEnded };
-        // If metadata already loaded
         if (el.readyState >= 1 && el.duration) {
           setDurationMs(el.duration * 1000);
         }

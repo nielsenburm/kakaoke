@@ -64,9 +64,53 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
 
   const showBg = settings.showBackground;
   const bgVideoUrl = showBg ? song.videoUrl : null;
-  // Show image as fallback while video loads, or as primary background if no video
-  const bgImageUrl = showBg ? (song.backgroundUrl ?? song.coverUrl) : null;
-  const hasBg = !!(bgVideoUrl || bgImageUrl);
+  // Use thumbnail for cover fallback — full covers can be multi-MB and freeze the browser during decode
+  const bgImageSrc = showBg ? (song.backgroundUrl ?? song.thumbnailUrl ?? song.coverUrl) : null;
+
+  // ── Media readiness gates ──
+
+  // Image: decode off main thread
+  const [bgImageReady, setBgImageReady] = useState(!bgImageSrc);
+  useEffect(() => {
+    if (!bgImageSrc) { setBgImageReady(true); return; }
+    setBgImageReady(false);
+    const img = new Image();
+    img.src = bgImageSrc;
+    img.decode()
+      .then(() => setBgImageReady(true))
+      .catch(() => setBgImageReady(true));
+  }, [bgImageSrc]);
+
+  // Video: wait for enough data to start playback
+  const [videoReady, setVideoReady] = useState(!bgVideoUrl);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!bgVideoUrl || !video) { setVideoReady(true); return; }
+    setVideoReady(false);
+    video.preload = 'auto';
+    video.load();
+    const onCanPlay = () => setVideoReady(true);
+    video.addEventListener('canplay', onCanPlay, { once: true });
+    const timeout = setTimeout(() => setVideoReady(true), 5000);
+    return () => {
+      video.removeEventListener('canplay', onCanPlay);
+      clearTimeout(timeout);
+    };
+  }, [bgVideoUrl]);
+
+  // Microphone: request access during loading so AudioContext creation doesn't freeze the player UI
+  const [micReady, setMicReady] = useState(!settings.autoPlay);
+  const micRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!settings.autoPlay || micRequestedRef.current) return;
+    micRequestedRef.current = true;
+    mic.requestMic().finally(() => setMicReady(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // All resources loaded — safe to show player without freezing
+  const allReady = bgImageReady && videoReady && micReady;
+  const bgImageUrl = bgImageReady ? bgImageSrc : null;
+  const hasBg = !!(bgVideoUrl || bgImageSrc);
 
   // Set simulated duration from timeline if no audio
   useEffect(() => {
@@ -78,15 +122,13 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [timeline, song.audioUrl, player.setSimulatedDuration]);
 
-  // Auto-play and auto-enable mic when mounted (if enabled in settings)
+  // Auto-play — only after all resources are ready (mic already acquired during loading)
+  const autoPlayFired = useRef(false);
   useEffect(() => {
-    if (!settings.autoPlay) return;
-    const id = setTimeout(() => {
-      player.play();
-      mic.requestMic();
-    }, 100);
-    return () => clearTimeout(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!settings.autoPlay || autoPlayFired.current || !allReady) return;
+    autoPlayFired.current = true;
+    player.play();
+  }, [settings.autoPlay, allReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sync = useLyricsSync(timeline, player.getCurrentTimeMs, player.isPlaying);
 
@@ -145,9 +187,17 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     return () => clearInterval(id);
   }, [player.isPlaying, player.getCurrentTimeMs, videoGapSec]);
 
+  // Single return — keeps video/audio elements mounted so they retain buffered data
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
+      {/* Loading overlay — shown until all resources are buffered */}
+      {!allReady && (
+        <div className={styles.loadingScreen}>
+          <img className={styles.loadingImage} src="/loading.png" alt="Loading song" />
+        </div>
+      )}
+
+      <div className={styles.header} style={allReady ? undefined : { display: 'none' }}>
         <Link to={`/song/${song.id}`} className={styles.back}>&larr; Back</Link>
         <div className={styles.songInfo}>
           <span className={styles.title}>{song.title}</span>
@@ -163,14 +213,15 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
         </button>
       </div>
 
-      {mic.error && <div className={styles.micError}>{mic.error}</div>}
+      {allReady && mic.error && <div className={styles.micError}>{mic.error}</div>}
 
-      <div className={styles.stageArea}>
+      <div className={styles.stageArea} style={allReady ? undefined : { display: 'none' }}>
         {bgImageUrl && (
           <img
-            className={`${styles.bgMedia} ${!song.backgroundUrl ? styles.bgBlurred : ''}`}
+            className={styles.bgMedia}
             src={bgImageUrl}
             alt=""
+            decoding="async"
           />
         )}
         {bgVideoUrl && (
@@ -215,7 +266,8 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
         )}
       </div>
 
-      <div className={styles.controls}>
+      {/* Controls — always mounted so audio can buffer; hidden during loading */}
+      <div className={styles.controls} style={allReady ? undefined : { display: 'none' }}>
         <AudioPlayer audioUrl={song.audioUrl} player={player} />
       </div>
     </div>
