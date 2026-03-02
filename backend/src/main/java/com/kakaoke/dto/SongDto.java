@@ -22,6 +22,8 @@ public record SongDto(
         String thumbnailUrl,
         String backgroundUrl,
         String audioUrl,
+        String videoUrl,
+        Double videoGap,
         List<String> tags,
         String status,
         boolean played

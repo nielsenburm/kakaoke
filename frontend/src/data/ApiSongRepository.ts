@@ -107,6 +107,7 @@ export class ApiSongRepository implements SongRepository {
       thumbnailUrl: song.thumbnailUrl ? `${API_BASE}${song.thumbnailUrl}` : null,
       backgroundUrl: song.backgroundUrl ? `${API_BASE}${song.backgroundUrl}` : null,
       audioUrl: song.audioUrl ? `${API_BASE}${song.audioUrl}` : null,
+      videoUrl: song.videoUrl ? `${API_BASE}${song.videoUrl}` : null,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSongRepository } from '../../context/SongRepositoryContext';
 import type { Song } from '../../model/Song';
@@ -100,6 +100,36 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [mic]);
 
+  // Video sync
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoGapSec = song.videoGap ?? 0;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (player.isPlaying) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [player.isPlaying]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !player.isPlaying) return;
+
+    const expectedTime = player.currentTimeMs / 1000 - videoGapSec;
+    if (expectedTime < 0) return;
+    if (Math.abs(video.currentTime - expectedTime) > 0.3) {
+      video.currentTime = expectedTime;
+    }
+  }, [player.currentTimeMs, player.isPlaying, videoGapSec]);
+
+  const showBg = settings.showBackground;
+  const bgVideoUrl = showBg ? song.videoUrl : null;
+  const bgImageUrl = showBg && !song.videoUrl ? (song.backgroundUrl ?? song.coverUrl) : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -121,6 +151,25 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
       {mic.error && <div className={styles.micError}>{mic.error}</div>}
 
       <div className={styles.stageArea}>
+        {bgVideoUrl && (
+          <video
+            ref={videoRef}
+            className={styles.bgMedia}
+            src={bgVideoUrl}
+            muted
+            playsInline
+            preload="metadata"
+          />
+        )}
+        {bgImageUrl && (
+          <img
+            className={`${styles.bgMedia} ${!song.backgroundUrl ? styles.bgBlurred : ''}`}
+            src={bgImageUrl}
+            alt=""
+          />
+        )}
+        {(bgVideoUrl || bgImageUrl) && <div className={styles.bgDim} />}
+
         {mic.isActive && settings.showPitchIndicator && (
           <PitchIndicator pitchDiff={scoring.currentPitchDiff} />
         )}
