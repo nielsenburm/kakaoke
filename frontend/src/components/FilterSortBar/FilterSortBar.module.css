@@ -8,8 +8,13 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  color: var(--text-dimmed);
+  color: var(--text-primary);
   font-size: 0.9rem;
   outline: none;
   cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.select:focus {
+  border-color: var(--accent);
 }

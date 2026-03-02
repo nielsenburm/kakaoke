@@ -13,6 +13,10 @@ export interface Song {
   voiceNames: string[] | null;
   previewStart: number | null;
   coverUrl: string | null;
+  thumbnailUrl: string | null;
   backgroundUrl: string | null;
   audioUrl: string | null;
+  tags: string[] | null;
+  status: 'ready' | 'processing' | 'broken';
+  played: boolean;
 }

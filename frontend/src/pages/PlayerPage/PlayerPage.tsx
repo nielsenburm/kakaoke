@@ -1,13 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSongRepository } from '../../context/SongRepositoryContext';
 import type { Song } from '../../model/Song';
 import type { LyricTimeline } from '../../model/LyricTimeline';
 import { lineEndMs } from '../../model/LyricTimeline';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useMicrophone } from '../../hooks/useMicrophone';
+import { useScoring } from '../../hooks/useScoring';
 import { useLyricsSync } from '../../components/LyricsRenderer/useLyricsSync';
 import { AudioPlayer } from '../../components/AudioPlayer/AudioPlayer';
 import { LyricsRenderer } from '../../components/LyricsRenderer/LyricsRenderer';
+import { ScoreDisplay } from '../../components/ScoreDisplay/ScoreDisplay';
+import { PitchIndicator } from '../../components/PitchIndicator/PitchIndicator';
+import { ConnectionError } from '../../components/ConnectionError/ConnectionError';
+import { useSettings } from '../../context/SettingsContext';
 import styles from './PlayerPage.module.css';
 
 export function PlayerPage() {
@@ -18,8 +24,10 @@ export function PlayerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     if (!songId) return;
+    setLoading(true);
+    setError(null);
     Promise.all([repo.getSongById(songId), repo.getLyricTimeline(songId)])
       .then(([s, t]) => {
         if (!s) {
@@ -28,19 +36,28 @@ export function PlayerPage() {
         }
         setSong(s);
         setTimeline(t);
+        repo.markPlayed(songId).catch(() => {});
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [songId, repo]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   if (loading) return <div className={styles.status}>Loading...</div>;
-  if (error || !song) return <div className={styles.status}>{error ?? 'Song not found'}</div>;
+  if (error || !song) return <ConnectionError message={error ?? 'Song not found'} onRetry={fetchData} />;
 
   return <PlayerView song={song} timeline={timeline} />;
 }
 
 function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | null }) {
+  const navigate = useNavigate();
+  const { settings } = useSettings();
   const player = useAudioPlayer(song.audioUrl);
+  const mic = useMicrophone(settings.micSensitivity);
+  const scoring = useScoring(timeline, player.currentTimeMs, mic.currentPitch, mic.isActive, settings.pitchTolerance);
 
   // Set simulated duration from timeline if no audio
   useEffect(() => {
@@ -52,15 +69,35 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
     }
   }, [timeline, song.audioUrl, player.setSimulatedDuration]);
 
-  // Auto-play when mounted
+  // Auto-play and auto-enable mic when mounted
   useEffect(() => {
-    // Small delay to ensure the <audio> element is attached to the ref
-    const id = setTimeout(() => player.play(), 100);
+    const id = setTimeout(() => {
+      player.play();
+      mic.requestMic();
+    }, 100);
     return () => clearTimeout(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentTimeMs = useCallback(() => player.currentTimeMs, [player.currentTimeMs]);
   const sync = useLyricsSync(timeline, getCurrentTimeMs, player.isPlaying);
+
+  const handleRestart = useCallback(() => {
+    scoring.reset();
+    player.seek(0);
+    player.play();
+  }, [scoring, player]);
+
+  const handleBack = useCallback(() => {
+    navigate(`/song/${song.id}`);
+  }, [navigate, song.id]);
+
+  const handleMicToggle = useCallback(() => {
+    if (mic.isActive) {
+      mic.stopMic();
+    } else {
+      mic.requestMic();
+    }
+  }, [mic]);
 
   return (
     <div className={styles.page}>
@@ -70,21 +107,57 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
           <span className={styles.title}>{song.title}</span>
           <span className={styles.artist}>{song.artist}</span>
         </div>
+        <button
+          className={`${styles.micButton} ${mic.isActive ? styles.micActive : ''}`}
+          onClick={handleMicToggle}
+          disabled={mic.isRequesting}
+          title={mic.isActive ? 'Disable microphone' : 'Enable microphone for scoring'}
+        >
+          <MicIcon />
+        </button>
       </div>
 
-      {timeline ? (
-        <LyricsRenderer
-          timeline={timeline}
-          sync={sync}
-          currentTimeMs={player.currentTimeMs}
-        />
-      ) : (
-        <div className={styles.noLyrics}>No lyrics available for this song.</div>
-      )}
+      {mic.error && <div className={styles.micError}>{mic.error}</div>}
+
+      <div className={styles.stageArea}>
+        {mic.isActive && settings.showPitchIndicator && (
+          <PitchIndicator pitchDiff={scoring.currentPitchDiff} />
+        )}
+
+        {timeline ? (
+          <LyricsRenderer
+            timeline={timeline}
+            sync={sync}
+            currentTimeMs={player.currentTimeMs}
+            tokenScores={mic.isActive ? scoring.currentLineTokenScores : null}
+          />
+        ) : (
+          <div className={styles.noLyrics}>No lyrics available for this song.</div>
+        )}
+
+        {mic.isActive && (
+          <ScoreDisplay
+            scoring={scoring}
+            onRestart={handleRestart}
+            onBack={handleBack}
+          />
+        )}
+      </div>
 
       <div className={styles.controls}>
         <AudioPlayer audioUrl={song.audioUrl} player={player} />
       </div>
     </div>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="1" width="6" height="12" rx="3" />
+      <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
   );
 }

@@ -4,6 +4,7 @@ import type { SongPage, SongQuery } from '../../data/SongRepository';
 import { SearchBar } from '../../components/SearchBar/SearchBar';
 import { FilterSortBar, type FilterSortValues } from '../../components/FilterSortBar/FilterSortBar';
 import { SongCard } from '../../components/SongCard/SongCard';
+import { ConnectionError } from '../../components/ConnectionError/ConnectionError';
 import styles from './LibraryPage.module.css';
 
 const PAGE_SIZE = 24;
@@ -70,7 +71,7 @@ export function LibraryPage() {
   }, []);
 
   if (loading && !songPage) return <div className={styles.status}>Loading songs...</div>;
-  if (error) return <div className={styles.status}>Error: {error}</div>;
+  if (error) return <ConnectionError message={error} onRetry={fetchSongs} />;
 
   const totalPages = songPage?.totalPages ?? 0;
 

@@ -7,9 +7,11 @@ interface LyricsRendererProps {
   timeline: LyricTimeline;
   sync: SyncState;
   currentTimeMs: number;
+  /** Per-token accuracy (0-100) for the current line, from useScoring */
+  tokenScores?: Map<number, number> | null;
 }
 
-export function LyricsRenderer({ timeline, sync, currentTimeMs }: LyricsRendererProps) {
+export function LyricsRenderer({ timeline, sync, currentTimeMs, tokenScores }: LyricsRendererProps) {
   const currIdx = sync.activeLineIndex;
   const nextIdx = currIdx >= 0 && currIdx < timeline.lines.length - 1 ? currIdx + 1 : -1;
 
@@ -37,7 +39,7 @@ export function LyricsRenderer({ timeline, sync, currentTimeMs }: LyricsRenderer
               <div className={styles.countdownFill} style={{ transform: `scaleX(${countdownProgress})` }} />
             </div>
           )}
-          <div>{renderTokens(timeline.lines[currIdx], sync, currentTimeMs, singing)}</div>
+          <div>{renderTokens(timeline.lines[currIdx], sync, currentTimeMs, singing, tokenScores)}</div>
         </div>
       )}
       {nextIdx >= 0 && (
@@ -49,7 +51,19 @@ export function LyricsRenderer({ timeline, sync, currentTimeMs }: LyricsRenderer
   );
 }
 
-function renderTokens(line: LyricLine, sync: SyncState, currentTimeMs: number, singing: boolean) {
+function scoreClass(pct: number): string {
+  if (pct >= 70) return styles.tokenGood;
+  if (pct >= 40) return styles.tokenClose;
+  return styles.tokenMiss;
+}
+
+function renderTokens(
+  line: LyricLine,
+  sync: SyncState,
+  currentTimeMs: number,
+  singing: boolean,
+  tokenScores?: Map<number, number> | null,
+) {
   return line.tokens.map((token, tokenIdx) => {
     let tokenClass = styles.token;
     if (singing) {
@@ -59,7 +73,13 @@ function renderTokens(line: LyricLine, sync: SyncState, currentTimeMs: number, s
         tokenIdx < sync.activeTokenIndex ||
         currentTimeMs > tokenEndMs(token)
       ) {
-        tokenClass += ` ${styles.pastToken}`;
+        // Past token: use score-based color if available
+        const score = tokenScores?.get(tokenIdx);
+        if (score !== undefined) {
+          tokenClass += ` ${scoreClass(score)}`;
+        } else {
+          tokenClass += ` ${styles.pastToken}`;
+        }
       }
     }
     return <span key={tokenIdx} className={tokenClass}>{token.text}</span>;

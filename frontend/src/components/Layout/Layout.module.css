@@ -29,8 +29,14 @@
   text-shadow: 0 0 12px var(--accent-glow);
 }
 
-.navLink {
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
+}
+
+.navLink {
   padding: 8px 16px;
   color: var(--text-secondary);
   font-size: 0.9rem;

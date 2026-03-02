@@ -1,0 +1,145 @@
+/* ── Live HUD (top-right during playback) ── */
+
+.hud {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  text-align: right;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.totalScore {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.percentage {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1.2;
+}
+
+/* ── Line score notification ── */
+
+.lineNotification {
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  animation: notifyPop 2s ease-out forwards;
+}
+
+.ratingGood {
+  color: var(--accent);
+}
+
+.ratingOk {
+  color: var(--text-secondary);
+}
+
+.ratingMiss {
+  color: #ff6b6b;
+}
+
+@keyframes notifyPop {
+  0%   { opacity: 0; transform: scale(0.8); }
+  12%  { opacity: 1; transform: scale(1.05); }
+  20%  { transform: scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── End screen overlay ── */
+
+.endScreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(10, 10, 15, 0.92);
+  backdrop-filter: blur(12px);
+  z-index: 20;
+  animation: fadeInEnd 0.6s ease;
+}
+
+@keyframes fadeInEnd {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.endLabel {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.endScore {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.endPossible {
+  font-size: 1rem;
+  color: var(--text-dimmed);
+  margin-top: -4px;
+}
+
+.endPercentage {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.endRating {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.endActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btnPrimary,
+.btnSecondary {
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.btnPrimary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background: #c030e0;
+  transform: scale(1.03);
+}
+
+.btnSecondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btnSecondary:hover {
+  background: var(--bg-hover);
+  transform: scale(1.03);
+}

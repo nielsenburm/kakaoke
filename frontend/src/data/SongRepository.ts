@@ -1,6 +1,17 @@
 import type { Song } from '../model/Song';
 import type { LyricTimeline } from '../model/LyricTimeline';
 
+export interface SongUpdate {
+  title?: string;
+  artist?: string;
+  genre?: string;
+  edition?: string;
+  creator?: string;
+  year?: number | null;
+  language?: string;
+  tags?: string[];
+}
+
 export interface SongQuery {
   search?: string;
   genre?: string;
@@ -27,4 +38,7 @@ export interface SongRepository {
   getGenres(): Promise<string[]>;
   getLanguages(): Promise<string[]>;
   addSong(file: File): Promise<Song>;
+  updateSong(id: string, update: SongUpdate): Promise<Song>;
+  deleteSong(id: string): Promise<void>;
+  markPlayed(id: string): Promise<void>;
 }

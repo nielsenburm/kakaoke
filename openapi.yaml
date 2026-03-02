@@ -24,6 +24,8 @@ tags:
     description: Import new songs into the library
   - name: Filters
     description: Available filter values for the song library
+  - name: Settings
+    description: User-configurable application settings
 
 paths:
   /api/songs:
@@ -118,6 +120,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Song"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateSong
+      tags: [Songs]
+      summary: Update song metadata
+      description: |
+        Updates the metadata of an existing song. Only provided fields are
+        updated — omitted fields retain their current values. To clear an
+        optional field, send an empty string (for text) or an empty array
+        (for tags).
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongUpdate"
+      responses:
+        "200":
+          description: Updated song metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSong
+      tags: [Songs]
+      summary: Delete a song from the library
+      description: |
+        Removes the song from the database and deletes all associated files
+        from storage (audio, cover, background, UltraStar .txt). This action
+        is irreversible.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "204":
+          description: Song successfully deleted.
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -219,6 +262,35 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/songs/{songId}/thumbnail:
+    get:
+      operationId: getSongThumbnail
+      tags: [Assets]
+      summary: Get a small thumbnail of the song's cover
+      description: |
+        Returns a ~200px JPEG thumbnail of the cover image. The thumbnail is
+        stored in the database and available immediately after import (even while
+        large files are still uploading to storage). Ideal for library grid views.
+        For existing songs imported before thumbnail support, the thumbnail is
+        generated on-demand on first request.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "200":
+          description: Thumbnail image (JPEG).
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=86400"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/songs/{songId}/background:
     get:
       operationId: getSongBackground
@@ -240,6 +312,23 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/songs/{songId}/played:
+    post:
+      operationId: markSongPlayed
+      tags: [Songs]
+      summary: Mark a song as played
+      description: |
+        Sets the `played` flag to `true` for the given song. This removes the
+        "New" badge from the library grid. Idempotent — calling multiple times
+        has no additional effect.
+      parameters:
+        - $ref: "#/components/parameters/songId"
+      responses:
+        "204":
+          description: Song marked as played.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/songs/import:
     post:
       operationId: importSong
@@ -248,8 +337,22 @@ paths:
       description: |
         Accepts a ZIP file containing an UltraStar `.txt` file and its
         associated assets (audio, cover, background). The server extracts
-        the archive, parses the UltraStar file, and adds the song to the
-        library. The ZIP must contain exactly one `.txt` file at any level.
+        the archive, parses the UltraStar file, generates a cover thumbnail,
+        uploads the `.txt` file synchronously, and saves the song to the
+        database with `status: processing`. Large files (audio, cover,
+        background) are uploaded to storage asynchronously in the background.
+
+        The response returns immediately with the song metadata and thumbnail
+        URL. The `status` field will be `processing` until all files finish
+        uploading, then it transitions to `ready`. If the upload fails, the
+        status becomes `broken`.
+
+        **Deduplication:** The server computes a SHA-256 hash of the `.txt`
+        file content. If an existing song has the same hash, the import
+        replaces that song (same ID is kept, old files are cleaned up).
+        This allows re-uploading a song to fix a broken entry.
+
+        The ZIP must contain exactly one `.txt` file at any level.
       requestBody:
         required: true
         content:
@@ -316,6 +419,25 @@ paths:
                   type: string
                 example: ["Charts", "Party", "SingStar"]
 
+  /api/filters/tags:
+    get:
+      operationId: getTags
+      tags: [Filters]
+      summary: List all tags used in the library
+      description: |
+        Returns the distinct tag values across all songs, sorted
+        alphabetically. Useful for populating tag suggestions.
+      responses:
+        "200":
+          description: List of tag strings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["classic", "favorite", "party"]
+
   /api/filters/languages:
     get:
       operationId: getLanguages
@@ -334,6 +456,49 @@ paths:
                 items:
                   type: string
                 example: ["English", "German", "Spanish", "Japanese"]
+
+  /api/settings:
+    get:
+      operationId: getSettings
+      tags: [Settings]
+      summary: Get current application settings
+      description: |
+        Returns the current application settings. If no settings have been
+        saved yet, returns the default values.
+      responses:
+        "200":
+          description: Current settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: updateSettings
+      tags: [Settings]
+      summary: Update application settings
+      description: |
+        Accepts a partial or full settings object. Provided fields are merged
+        with existing settings; omitted fields retain their current values.
+        Returns the complete merged settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: Updated settings (merged result).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          description: Invalid settings values (out of range).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   parameters:
@@ -432,8 +597,19 @@ components:
           type: string
           format: uri
           nullable: true
-          description: URL to retrieve the cover image, or null if no cover exists.
+          description: |
+            URL to retrieve the full-size cover image. Null if no cover exists
+            or if the song is still processing (assets not yet uploaded).
           example: "/api/songs/queen-bohemian-rhapsody/cover"
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            URL to retrieve a small (~200px) JPEG thumbnail of the cover.
+            Available immediately after import (stored in DB). Preferred for
+            library grid views to save bandwidth.
+          example: "/api/songs/queen-bohemian-rhapsody/thumbnail"
         backgroundUrl:
           type: string
           format: uri
@@ -446,6 +622,66 @@ components:
           nullable: true
           description: URL to stream the audio file, or null if no audio exists.
           example: "/api/songs/queen-bohemian-rhapsody/audio"
+        tags:
+          type: array
+          nullable: true
+          description: User-defined tags for categorization.
+          items:
+            type: string
+          example: ["classic", "favorite", "party"]
+        status:
+          type: string
+          enum: [ready, processing, broken]
+          description: |
+            Current state of the song:
+            - `ready`: All files uploaded and available for playback.
+            - `processing`: Song was just imported and large files (audio, cover,
+              background) are still uploading to storage in the background.
+              Metadata and thumbnail are available; asset URLs are null.
+            - `broken`: Essential files are missing (e.g., .txt file lost).
+          default: ready
+          example: "ready"
+        played:
+          type: boolean
+          description: |
+            Whether this song has been played at least once. Songs that have
+            never been played show a "New" badge in the library grid.
+          default: false
+
+    SongUpdate:
+      type: object
+      description: |
+        Partial song metadata update. Only provided fields are updated.
+        Send an empty string to clear a text field, or an empty array to
+        clear tags.
+      properties:
+        title:
+          type: string
+          description: Updated song title.
+        artist:
+          type: string
+          description: Updated artist name.
+        genre:
+          type: string
+          description: Updated genre. Empty string clears it.
+        edition:
+          type: string
+          description: Updated edition. Empty string clears it.
+        creator:
+          type: string
+          description: Updated creator name. Empty string clears it.
+        year:
+          type: integer
+          nullable: true
+          description: Updated release year. Null clears it.
+        language:
+          type: string
+          description: Updated language. Empty string clears it.
+        tags:
+          type: array
+          description: Updated tags. Empty array clears them.
+          items:
+            type: string
 
     SongPage:
       type: object
@@ -543,6 +779,43 @@ components:
         - `R` Rap — scored on timing only, pitch ignored
         - `G` Golden rap — rap with bonus points
       enum: [":", "*", "F", "R", "G"]
+
+    Settings:
+      type: object
+      description: |
+        User-configurable application settings. All fields are optional on
+        update — omitted fields retain their current values.
+      properties:
+        pitchTolerance:
+          type: number
+          format: double
+          description: |
+            How many semitones the singer's pitch can deviate from the
+            expected note and still count as a hit. Lower values make
+            scoring harder.
+          minimum: 0.5
+          maximum: 4.0
+          default: 2.0
+          example: 2.0
+        micSensitivity:
+          type: number
+          format: double
+          description: |
+            RMS energy threshold for silence detection. Lower values make
+            the microphone more sensitive (picks up quieter singing),
+            higher values ignore more background noise.
+          minimum: 0.005
+          maximum: 0.05
+          default: 0.01
+          example: 0.01
+        showPitchIndicator:
+          type: boolean
+          description: |
+            Whether to display the vertical pitch gauge during singing.
+            The gauge shows the singer's detected pitch relative to the
+            expected note in real time.
+          default: true
+          example: true
 
     Error:
       type: object

@@ -1,0 +1,81 @@
+.gauge {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 300px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* ── Colored zone bands ── */
+
+.zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zone {
+  flex: 1;
+}
+
+/* 7 zones: dim | red | orange | green | orange | red | dim */
+.zoneDim     { background: rgba(85, 85, 112, 0.1); }
+.zoneMiss    { background: rgba(248, 113, 113, 0.15); }
+.zoneClose   { background: rgba(251, 146, 60, 0.15); }
+.zonePerfect { background: rgba(74, 222, 128, 0.25); }
+
+/* ── Center target line ── */
+
+.targetLine {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: rgba(74, 222, 128, 0.6);
+  border-radius: 1px;
+  transform: translateY(-50%);
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+/* ── Singer's pitch dot ── */
+
+.dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition:
+    transform 180ms ease-out,
+    opacity 0.2s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+  will-change: transform;
+}
+
+.dotPerfect {
+  background: #4ade80;
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.6), 0 0 24px rgba(74, 222, 128, 0.3);
+}
+
+.dotClose {
+  background: #fb923c;
+  box-shadow: 0 0 10px rgba(251, 146, 60, 0.5), 0 0 20px rgba(251, 146, 60, 0.2);
+}
+
+.dotMiss {
+  background: #f87171;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.5), 0 0 20px rgba(248, 113, 113, 0.2);
+}
+
+.dotWrong {
+  background: var(--text-dimmed);
+  box-shadow: none;
+}

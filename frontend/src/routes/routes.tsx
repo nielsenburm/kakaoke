@@ -4,6 +4,7 @@ import { LibraryPage } from '../pages/LibraryPage/LibraryPage';
 import { SongDetailPage } from '../pages/SongDetailPage/SongDetailPage';
 import { PlayerPage } from '../pages/PlayerPage/PlayerPage';
 import { ImportPage } from '../pages/ImportPage/ImportPage';
+import { SettingsPage } from '../pages/SettingsPage/SettingsPage';
 
 export const routes: RouteObject[] = [
   {
@@ -13,6 +14,7 @@ export const routes: RouteObject[] = [
       { path: '/song/:songId', element: <SongDetailPage /> },
       { path: '/play/:songId', element: <PlayerPage /> },
       { path: '/import', element: <ImportPage /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
 ];

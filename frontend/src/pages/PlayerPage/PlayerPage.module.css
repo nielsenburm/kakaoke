@@ -6,7 +6,7 @@
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
@@ -37,6 +37,14 @@
   color: var(--text-secondary);
 }
 
+.stageArea {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .noLyrics {
   flex: 1;
   display: flex;
@@ -44,6 +52,50 @@
   justify-content: center;
   color: var(--text-dimmed);
   font-size: 1.2rem;
+}
+
+.micButton {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.micButton:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.micButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.micActive {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.micActive:hover {
+  background: #c030e0;
+  color: #fff;
+}
+
+.micError {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  color: #ff6b6b;
+  text-align: center;
 }
 
 .controls {

@@ -34,3 +34,6 @@ Thumbs.db
 .env.*
 !.env.example
 The UltraStar File Format (v1).md
+CLAUDE.md
+INSTRUCTIONS.md
+.claude/
