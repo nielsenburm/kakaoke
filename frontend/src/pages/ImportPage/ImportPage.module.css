@@ -10,17 +10,32 @@
 
 .back {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-size: 0.9rem;
+  font-weight: 500;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .back:hover {
   color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .heading {
   font-size: 1.8rem;
-  font-weight: 700;
+  font-weight: 800;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .description {
@@ -37,8 +52,8 @@
   gap: 12px;
   width: 100%;
   padding: 48px 24px;
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
+  border: 2px dashed rgba(224, 64, 251, 0.25);
+  border-radius: var(--radius-xl);
   background: var(--bg-card);
   cursor: pointer;
   transition: border-color var(--transition-fast), background var(--transition-fast);
@@ -46,13 +61,13 @@
 
 .dropZone:hover {
   border-color: var(--accent);
-  background: var(--bg-hover);
+  background: var(--accent-soft);
 }
 
 .dropZoneActive {
   border-color: var(--accent);
-  background: var(--bg-hover);
-  box-shadow: 0 0 24px var(--accent-glow);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-accent);
 }
 
 .hiddenInput {
@@ -60,7 +75,7 @@
 }
 
 .dropIcon {
-  font-size: 2.5rem;
+  color: var(--accent);
 }
 
 .dropText {

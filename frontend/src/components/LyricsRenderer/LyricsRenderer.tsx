@@ -34,11 +34,9 @@ export function LyricsRenderer({ timeline, sync, currentTimeMs, tokenScores }: L
     <div className={styles.stage}>
       {currIdx >= 0 && (
         <div key={`line-${currIdx}`} className={styles.currentLine}>
-          {countdownProgress >= 0 && (
-            <div className={styles.countdown}>
-              <div className={styles.countdownFill} style={{ transform: `scaleX(${countdownProgress})` }} />
-            </div>
-          )}
+          <div className={styles.countdown} style={countdownProgress >= 0 ? undefined : { visibility: 'hidden' }}>
+            <div className={styles.countdownFill} style={{ transform: `scaleX(${Math.max(0, countdownProgress)})` }} />
+          </div>
           <div>{renderTokens(timeline.lines[currIdx], sync, currentTimeMs, singing, tokenScores)}</div>
         </div>
       )}

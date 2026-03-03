@@ -46,7 +46,13 @@ export function PlayerPage() {
     fetchData();
   }, [fetchData]);
 
-  if (loading) return <div className={styles.status}>Loading...</div>;
+  if (loading) return (
+    <div className={styles.page}>
+      <div className={styles.loadingScreen}>
+        <img className={styles.loadingImage} src="/loading.png" alt="Loading song" />
+      </div>
+    </div>
+  );
   if (error || !song) return <ConnectionError message={error ?? 'Song not found'} onRetry={fetchData} />;
 
   return <PlayerView song={song} timeline={timeline} />;
@@ -138,8 +144,8 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
   }, [scoring, player]);
 
   const handleBack = useCallback(() => {
-    navigate(`/song/${song.id}`);
-  }, [navigate, song.id]);
+    navigate('/');
+  }, [navigate]);
 
   const handleMicToggle = useCallback(() => {
     if (mic.isActive) {
@@ -197,7 +203,10 @@ function PlayerView({ song, timeline }: { song: Song; timeline: LyricTimeline | 
       )}
 
       <div className={styles.header} style={allReady ? undefined : { display: 'none' }}>
-        <Link to={`/song/${song.id}`} className={styles.back}>&larr; Back</Link>
+        <Link to={`/song/${song.id}`} className={styles.back}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          Back
+        </Link>
         <div className={styles.songInfo}>
           <span className={styles.title}>{song.title}</span>
           <span className={styles.artist}>{song.artist}</span>

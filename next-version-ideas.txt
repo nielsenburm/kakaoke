@@ -1,6 +1,5 @@
-- Video streaming
-- Preview function at song menu screen
-- Sessions - start a session, play songs one by another. Statistics across different plays, a playlist (curated my the host if activated) and a wishlist people can open add wishes or next songs (if playlist is disabled) to
+- Sessions - start a session, play songs one by another. Statistics across different plays, a playlist (curated by the host or public to add new songs by anyone, depending on session settings) and a wishlist people can open add wishes
 - scan QR code to join session with another device as client (multiple people can scan it with their smartphone and sing there)
 - Other karaoke software formats
 - advanced options when importing (normalizing some common patterns because often files are quite messy due to loose initial protocol which allowed quiet a lot)
+- duet mode

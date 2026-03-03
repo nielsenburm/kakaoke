@@ -8,20 +8,35 @@
 
 .back {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-size: 0.9rem;
+  font-weight: 500;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .back:hover {
   color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .heading {
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: 800;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* ── Sections ── */
+/* Sections */
 
 .section {
   display: flex;
@@ -30,7 +45,19 @@
   padding: 20px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-accent);
 }
 
 .sectionTitle {
@@ -41,7 +68,7 @@
   color: var(--text-secondary);
 }
 
-/* ── Slider fields ── */
+/* Slider fields */
 
 .field {
   display: flex;
@@ -116,11 +143,11 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
-  background: rgba(224, 64, 251, 0.1);
+  background: var(--accent-soft);
   border-radius: 4px;
 }
 
-/* ── Toggle switch ── */
+/* Toggle switch */
 
 .toggle {
   display: flex;
@@ -141,7 +168,7 @@
   background: var(--bg-hover);
   border-radius: 12px;
   border: 1px solid var(--border);
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .toggleSwitch::after {
@@ -157,8 +184,9 @@
 }
 
 .checkbox:checked + .toggleSwitch {
-  background: rgba(224, 64, 251, 0.2);
+  background: var(--accent-medium);
   border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-soft);
 }
 
 .checkbox:checked + .toggleSwitch::after {
@@ -171,7 +199,7 @@
   font-size: 0.95rem;
 }
 
-/* ── Segmented control ── */
+/* Segmented control */
 
 .segmented {
   display: flex;
@@ -204,11 +232,11 @@
 }
 
 .segmentedActive {
-  background: rgba(224, 64, 251, 0.15);
+  background: var(--accent-medium);
   color: var(--accent);
 }
 
-/* ── Reset button ── */
+/* Reset button */
 
 .resetButton {
   align-self: flex-start;
@@ -218,7 +246,7 @@
   color: var(--text-secondary);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-full);
   transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 

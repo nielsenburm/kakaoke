@@ -1,32 +1,43 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  position: relative;
+  padding: 0;
+  gap: 0;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), border-color var(--transition-smooth);
 }
 
 .card:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(224, 64, 251, 0.15);
   text-decoration: none;
 }
 
 .info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 32px 12px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  pointer-events: none;
 }
 
 .title {
   font-weight: 600;
   font-size: 0.95rem;
-  color: var(--text-primary);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -34,7 +45,8 @@
 
 .artist {
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,29 +98,31 @@
 
 .newBadge {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  padding: 2px 7px;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
   background: #16a34a;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  border-radius: 4px;
+  border-radius: var(--radius-full);
   line-height: 1.4;
   pointer-events: none;
 }
 
 .heartBtn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: none;
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.6);

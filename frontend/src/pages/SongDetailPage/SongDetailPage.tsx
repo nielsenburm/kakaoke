@@ -207,7 +207,10 @@ function SongDetailView({
 
   return (
     <div className={styles.page}>
-      <Link to="/" className={styles.back}>&larr; Back to Library</Link>
+      <Link to="/" className={styles.back}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        Library
+      </Link>
 
       {song.status === 'processing' && (
         <div className={styles.processingBanner}>
