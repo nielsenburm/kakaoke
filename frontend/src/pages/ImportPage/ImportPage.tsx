@@ -110,7 +110,8 @@ export function ImportPage() {
   return (
     <div className={styles.page}>
       <Link to="/" className={styles.back}>
-        &larr; Back to Library
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        Library
       </Link>
       <h1 className={styles.heading}>Import Songs</h1>
       <p className={styles.description}>
@@ -161,7 +162,9 @@ export function ImportPage() {
           </span>
         ) : (
           <>
-            <span className={styles.dropIcon}>&#128230;</span>
+            <span className={styles.dropIcon}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            </span>
             <span className={styles.dropText}>
               Drop .zip files here or click to browse
             </span>

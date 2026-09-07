@@ -24,10 +24,10 @@
   animation: shrinkToNav 800ms ease-in-out forwards;
 }
 
-/* Target: nav logo position — 24px from left, vertically centered in 80px nav, 68px tall */
+/* Target: nav logo position — 24px from left, vertically centered in 64px nav, 52px tall */
 @keyframes shrinkToNav {
   to {
-    width: 68px;
+    width: 52px;
     top: 6px;
     left: 24px;
     filter: drop-shadow(0 0 0px transparent);

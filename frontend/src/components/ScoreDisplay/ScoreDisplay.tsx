@@ -76,7 +76,7 @@ function EndScreen({ scoring, onRestart, onBack }: { scoring: ScoringState; onRe
       <div className={`${styles.endRating} ${ratingClass(pct)}`}>{ratingLabel(pct)}</div>
       <div className={styles.endActions}>
         <button className={styles.btnPrimary} onClick={onRestart}>Sing Again</button>
-        <button className={styles.btnSecondary} onClick={onBack}>Back</button>
+        <button className={styles.btnSecondary} onClick={onBack}>Return to Library</button>
       </div>
     </div>
   );

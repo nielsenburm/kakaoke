@@ -20,11 +20,12 @@
   border-radius: 50%;
   font-size: 1rem;
   flex-shrink: 0;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .playPause:hover {
   background: var(--accent-secondary);
+  box-shadow: var(--shadow-accent);
 }
 
 .time {

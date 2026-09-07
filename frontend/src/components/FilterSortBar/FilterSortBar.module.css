@@ -7,11 +7,11 @@
   padding: 10px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-size: 1.1rem;
   cursor: pointer;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
   line-height: 1;
 }
 
@@ -23,20 +23,22 @@
 .favoriteActive {
   color: var(--accent);
   border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .select {
   padding: 10px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-full);
   color: var(--text-primary);
   font-size: 0.9rem;
   outline: none;
   cursor: pointer;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
